@@ -141,6 +141,18 @@ function buildElement(s, fx) {
   }
 }
 
+// Si el AudioContext no arranca (politica de autoplay), reproducimos sin efectos para que al menos suene
+function ensureCtxRunning(s) {
+  if (!AC || AC.state === 'running' || !s.fx || !s.playing || sources[s.netId] !== s) return;
+  AC.resume().catch(() => {}).finally(() => setTimeout(() => {
+    if (AC.state === 'running' || !s.fx || sources[s.netId] !== s) return;
+    const t = s.el.currentTime;
+    buildElement(s, false); loadUrl(s, s.url, t); applySource(s);
+    if (s.playing) s.el.play().catch(() => {});
+    if (s.netId === currentNet) post('audioError', { msg: 'audio en modo simple (sin ecualizador): el motor de audio no pudo iniciarse' });
+  }, 300));
+}
+
 function loadUrl(s, url, seek) {
   s.url = url;
   s.pendingSeek = seek || 0;
@@ -179,6 +191,7 @@ function syncSource(netId, state, serverNow) {
   else if (Math.abs(s.el.currentTime - pos) > 1.5) {
     if (s.el.readyState >= 1) s.el.currentTime = pos; else s.pendingSeek = pos;
   }
+  if (s.fx && state.playing) setTimeout(() => ensureCtxRunning(s), 800);
   state.playing ? s.el.play().catch((e) => { if (netId === currentNet && e.name === 'NotAllowedError') post('audioError', { msg: 'el navegador bloqueo la reproduccion (' + e.name + ')' }); }) : s.el.pause();
   }
   applySource(s);
@@ -347,6 +360,13 @@ function normalizeUrl(u) {
 const ERR = { 1: 'carga cancelada', 2: 'error de red al descargar el archivo', 3: 'el archivo esta danado o su formato no se puede decodificar',
               4: 'el enlace no es un archivo de audio directo, esta caido, o es http:// (usa https://)' };
 
+function titleFromUrl(u) {
+  try {
+    const f = decodeURIComponent(new URL(u).pathname.split('/').pop() || '').replace(/\.(mp3|wav|ogg)$/i, '').replace(/[_+-]+/g, ' ').trim();
+    return f ? f.slice(0, 40) : 'Reproducción rápida';
+  } catch (e) { return 'Reproducción rápida'; }
+}
+
 const playSong = (s) => { getCtx(); post('play', { url: s.url, title: s.title }); };
 function step(dir) {
   if (!library.length) return;
@@ -362,6 +382,7 @@ function toast(msg) {
 
 /* ============================ Botones ============================ */
 document.querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', () => post('close')));
+document.addEventListener('mousedown', () => { if (AC && AC.state === 'suspended') AC.resume(); });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') post('close'); });
 
 $('btnSave').onclick = () => {
@@ -374,7 +395,7 @@ $('btnClone').onclick = () => post('clone', { title: $('songTitle').value.trim()
 $('btnQuick').onclick = () => {
   const url = $('quickUrl').value.trim();
   if (!url) return;
-  getCtx(); post('play', { url: normalizeUrl(url), title: 'Reproducción rápida' }); $('quickUrl').value = '';
+  getCtx(); { const u = normalizeUrl(url); post('play', { url: u, title: titleFromUrl(u) }); } $('quickUrl').value = '';
 };
 $('bPlay').onclick = () => {
   getCtx();
@@ -473,10 +494,20 @@ window.addEventListener('message', ({ data: d }) => {
       library = d.list || []; renderSongs(); refreshDisplay(); break;
     case 'sync':
       syncSource(d.netId, d.state, d.serverNow); break;
+    case 'debug':
+      post('debugInfo', {
+        ctx: AC ? AC.state : 'sin-contexto', currentNet,
+        sources: Object.values(sources).map((s) => ({ net: s.netId, kind: s.kind, fx: s.fx, factor: s.factor, playing: s.playing,
+          paused: s.el.paused, t: s.el.currentTime, readyState: s.el.readyState, elVol: s.el.volume, muted: s.el.muted, url: s.url,
+          master: s.nodes ? s.nodes.master.gain.value : null }))
+      });
+      break;
     case 'remove':
       removeSource(d.netId); break;
     case 'tick':
-      Object.entries(d.factors).forEach(([id, f]) => {
+      if (AC && AC.state === 'suspended') AC.resume();
+      if (d.inside != null && d.factors) d.factors[d.inside] = 1;   // dentro del vehiculo siempre volumen completo
+      Object.entries(d.factors || {}).forEach(([id, f]) => {
         const s = sources[id]; if (!s) return;
         if (Math.abs(s.factor - f) > 0.01) { s.factor = f; applySource(s); }
       });

@@ -92,6 +92,18 @@ CreateThread(function()
     end
 end)
 
+---------------------------------------------------------------- diagnostico (/chipeo_debug)
+RegisterNUICallback('debugInfo', function(d, cb)
+    print('^3[chipeo_audio] diagnostico NUI:^7 ' .. json.encode(d))
+    cb('ok')
+end)
+
+RegisterCommand('chipeo_debug', function()
+    local netId = currentVehicleNetId()
+    print(('^3[chipeo_audio]^7 vehiculo netId=%s, estados activos=%s'):format(tostring(netId), json.encode(states)))
+    SendNUIMessage({ action = 'debug' })
+end, false)
+
 ---------------------------------------------------------------- servidor -> cliente
 RegisterNetEvent('chipeo:library', function(list)
     SendNUIMessage({ action = 'library', list = list })
@@ -122,19 +134,21 @@ CreateThread(function()
             local myVeh = GetVehiclePedIsIn(ped, false)
             local pos = GetEntityCoords(ped)
             local factors = {}
+            local inside = nil
 
             for netId in pairs(states) do
                 local veh = NetworkDoesNetworkIdExist(netId) and NetworkGetEntityFromNetworkId(netId) or 0
                 if veh ~= 0 and DoesEntityExist(veh) then
                     if veh == myVeh then
-                        factors[netId] = 1.0
+                        inside = netId
+                        factors[tostring(netId)] = 1.0
                     else
                         local d = #(pos - GetEntityCoords(veh))
                         local f = math.max(0.0, 1.0 - d / Config.MaxDistance)
-                        factors[netId] = f * f * Config.OutsideMuffle
+                        factors[tostring(netId)] = f * f * Config.OutsideMuffle
                     end
                 else
-                    factors[netId] = 0.0
+                    factors[tostring(netId)] = 0.0
                 end
             end
 
@@ -143,7 +157,7 @@ CreateThread(function()
                 temp = GetVehicleEngineTemperature(myVeh)
                 volt = GetIsVehicleEngineRunning(myVeh) and 13.3 or 12.4
             end
-            SendNUIMessage({ action = 'tick', factors = factors, temp = temp, volt = volt })
+            SendNUIMessage({ action = 'tick', factors = factors, inside = inside, temp = temp, volt = volt })
 
             if uiOpen and myVeh == 0 then setUi(false) end
             Wait(150)
