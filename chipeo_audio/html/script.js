@@ -94,7 +94,7 @@ function getCtx() {
 }
 
 function newSource(netId) {
-  const s = { netId, el: null, url: null, fx: true, factor: 0, settings: defaultSettings(), nodes: null,
+  const s = { kind: 'audio', yt: null, netId, el: null, url: null, fx: true, factor: 0, settings: defaultSettings(), nodes: null,
               playing: false, pendingSeek: null, target: 0 };
   buildElement(s, true);
   sources[netId] = s;
@@ -148,6 +148,7 @@ function loadUrl(s, url, seek) {
 }
 
 function applySource(s) {
+  if (s.kind === 'yt') return ytVolume(s);
   const st = s.settings;
   const level = clamp(st.master) * s.factor;
   if (!s.nodes) { s.el.volume = clamp(level); return; }
@@ -167,16 +168,24 @@ function syncSource(netId, state, serverNow) {
   const s = sources[netId] || newSource(netId);
   s.settings = state.settings || defaultSettings();
   const pos = state.position + (state.playing ? (serverNow - state.updatedAt) / 1000 : 0);
+  const vid = ytId(state.url);
+  s.playing = state.playing;
+  if (vid) {
+    if (s.kind !== 'yt') { s.el.pause(); s.kind = 'yt'; }
+    syncYT(s, vid, state, pos);
+  } else {
+  if (s.kind === 'yt') { ytStop(s); s.kind = 'audio'; }
   if (s.url !== state.url) loadUrl(s, state.url, pos);
   else if (Math.abs(s.el.currentTime - pos) > 1.5) {
     if (s.el.readyState >= 1) s.el.currentTime = pos; else s.pendingSeek = pos;
   }
-  s.playing = state.playing;
   state.playing ? s.el.play().catch((e) => { if (netId === currentNet && e.name === 'NotAllowedError') post('audioError', { msg: 'el navegador bloqueo la reproduccion (' + e.name + ')' }); }) : s.el.pause();
+  }
   applySource(s);
 
   if (netId === currentNet) {
     serverState = state;
+    $('unit').classList.toggle('yt', s.kind === 'yt');
     if (!isDragging) { settings = JSON.parse(JSON.stringify(s.settings)); refreshKnobs(); }
     refreshDisplay();
   }
@@ -185,13 +194,94 @@ function syncSource(netId, state, serverNow) {
 
 function removeSource(netId) {
   const s = sources[netId];
-  if (s) { s.el.pause(); s.el.removeAttribute('src'); delete sources[netId]; }
+  if (s) { s.el.pause(); s.el.removeAttribute('src'); ytStop(s); delete sources[netId]; }
   if (netId === currentNet) { serverState = null; refreshDisplay(); renderSongs(); }
 }
 
 let isDragging = false;
 window.addEventListener('mousedown', (e) => { isDragging = !!e.target.closest('.knob'); });
 window.addEventListener('mouseup', () => { isDragging = false; });
+
+/* ============================ YouTube (sin ecualizador) ============================ */
+function ytId(u) {
+  const m = String(u).match(/^https?:\/\/(?:www\.|m\.|music\.)?(?:youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|embed\/|live\/)|youtu\.be\/)([\w-]{11})/i);
+  return m ? m[1] : null;
+}
+const cur = (s) => (s.kind === 'yt' ? (s.yt && s.yt.ready ? s.yt.player.getCurrentTime() || 0 : 0) : s.el.currentTime);
+const dur = (s) => (s.kind === 'yt' ? (s.yt && s.yt.ready ? s.yt.player.getDuration() || 0 : 0) : s.el.duration);
+
+let ytApi = null;
+function loadYtApi() {
+  if (ytApi) return ytApi;
+  ytApi = new Promise((resolve) => {
+    if (window.YT && window.YT.Player) return resolve();
+    window.onYouTubeIframeAPIReady = resolve;
+    const t = document.createElement('script');
+    t.src = 'https://www.youtube.com/iframe_api';
+    t.onerror = () => { ytApi = null; post('audioError', { msg: 'no se pudo cargar el reproductor de YouTube (sin internet o bloqueado)' }); };
+    document.head.appendChild(t);
+  });
+  return ytApi;
+}
+
+function ytWanted(s) {            // posicion actual segun el ultimo estado recibido
+  const w = s.yt.want;
+  return w.state.position + (w.state.playing ? w.pos0 - w.state.position + (performance.now() - w.recv) / 1000 : 0);
+}
+
+function ytApply(s) {
+  const y = s.yt;
+  if (!y.ready || !y.want) return;
+  const { state } = y.want, p = y.player;
+  if (y.id !== y.want.id) { y.id = y.want.id; p.loadVideoById({ videoId: y.id, startSeconds: ytWanted(s) }); }
+  else if (Math.abs((p.getCurrentTime() || 0) - ytWanted(s)) > 2) p.seekTo(ytWanted(s), true);
+  state.playing ? p.playVideo() : p.pauseVideo();
+  ytVolume(s);
+}
+
+function ytVolume(s) {
+  if (!s.yt || !s.yt.ready) return;
+  s.yt.player.setVolume(Math.round(clamp(s.settings.master * s.factor) * 100));
+}
+
+function syncYT(s, id, state, pos) {
+  if (!s.yt) s.yt = { ready: false, player: null, id: null, want: null };
+  s.yt.want = { id, state, pos0: pos, recv: performance.now() };
+  if (s.yt.player) return ytApply(s);
+  s.yt.creating = true;
+  loadYtApi().then(() => {
+    if (s.yt.player || sources[s.netId] !== s) return;
+    const host = document.createElement('div');
+    host.id = 'yt-' + s.netId;
+    $('ytHost').appendChild(host);
+    s.yt.player = new YT.Player(host.id, {
+      width: 200, height: 120, videoId: id,
+      playerVars: { autoplay: 1, controls: 0, playsinline: 1, disablekb: 1, start: Math.floor(ytWanted(s)) },
+      events: {
+        onReady: () => { s.yt.ready = true; s.yt.id = id; ytApply(s); },
+        onStateChange: (e) => {
+          if (e.data === 1 || e.data === 5) {
+            const d = s.yt.player.getVideoData && s.yt.player.getVideoData();
+            if (d && d.title && s.ytTitle !== d.title) { s.ytTitle = d.title; if (s.netId === currentNet) refreshDisplay(); }
+          }
+          if (e.data === 0 && s.netId === currentNet) { if (uiOpen) autoNext(); else post('ended'); }
+        },
+        onError: (e) => {
+          if (s.netId !== currentNet) return;
+          const msg = { 2: 'enlace de YouTube invalido', 5: 'error del reproductor de YouTube', 100: 'el video no existe o es privado',
+                        101: 'el dueño del video no permite reproducirlo fuera de YouTube', 150: 'el dueño del video no permite reproducirlo fuera de YouTube' };
+          post('audioError', { msg: msg[e.data] || 'error de YouTube ' + e.data });
+        }
+      }
+    });
+  });
+}
+
+function ytStop(s) {
+  if (!s.yt) return;
+  try { s.yt.player && s.yt.player.destroy(); } catch (e) {}
+  s.yt = null; s.ytTitle = null;
+}
 
 /* ============================ UI ============================ */
 function refreshKnobs() {
@@ -213,7 +303,9 @@ function fmt(t) {
 function refreshDisplay() {
   const st = serverState;
   $('status').textContent = !st ? 'STOPPED' : st.playing ? 'PLAYING' : 'PAUSED';
-  $('track').textContent = st ? st.title : '—';
+  const ys = sources[currentNet];
+  $('track').textContent = st ? ((ys && ys.ytTitle) || st.title) : '—';
+  document.querySelector('.icons').textContent = ys && ys.kind === 'yt' ? '\u25B6 YOUTUBE' : '\u266B USB';
   const idx = st ? library.findIndex((s) => s.url === st.url) : -1;
   $('trk').textContent = 'TR ' + String(idx + 1).padStart(2, '0');
   $('bPlay').classList.toggle('lit', !!(st && st.playing));
@@ -221,7 +313,7 @@ function refreshDisplay() {
   $('ledPwr').classList.toggle('on', !!st);
   $('ledUsb').classList.toggle('on', !!(st && st.playing));
   document.querySelectorAll('.led.pwr').forEach((l) => l.classList.toggle('on', !!(st && st.playing)));
-  $('npTitle').textContent = st ? st.title : 'Nada sonando';
+  $('npTitle').textContent = st ? ((ys && ys.ytTitle) || st.title) : 'Nada sonando';
   $('npState').textContent = !st ? 'DETENIDO' : st.playing ? 'REPRODUCIENDO' : 'EN PAUSA';
   $('npDisc').classList.toggle('spin', !!(st && st.playing));
   const tr = $('track');
@@ -295,7 +387,7 @@ $('bPrev').onclick = () => step(-1);
 $('bNext').onclick = () => step(1);
 $('seek').addEventListener('change', () => {
   const s = sources[currentNet];
-  if (s && s.el.duration) post('seek', { time: ($('seek').value / 1000) * s.el.duration });
+  if (s && dur(s)) post('seek', { time: ($('seek').value / 1000) * dur(s) });
 });
 
 /* ============================ Bucle de pantalla ============================ */
@@ -310,13 +402,13 @@ let ownBass = 0;
 function frame() {
   const s = sources[currentNet];
   if (uiOpen) {
-    if (s && s.el.duration) {
-      $('time').textContent = `${fmt(s.el.currentTime)} / ${fmt(s.el.duration)}`;
-      if (document.activeElement !== $('seek')) $('seek').value = (s.el.currentTime / s.el.duration) * 1000;
+    if (s && dur(s)) {
+      $('time').textContent = `${fmt(cur(s))} / ${fmt(dur(s))}`;
+      if (document.activeElement !== $('seek')) $('seek').value = (cur(s) / dur(s)) * 1000;
     } else $('time').textContent = '00:00 / 00:00';
 
     cx.clearRect(0, 0, cv.width, cv.height);
-    const live = s && s.nodes && s.playing;
+    const live = s && s.kind !== 'yt' && s.nodes && s.playing;
     if (live) s.nodes.analyser.getByteFrequencyData(fbuf);
     const bw = cv.width / BARS;
     for (let i = 0; i < BARS; i++) {

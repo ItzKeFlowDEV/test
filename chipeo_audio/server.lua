@@ -12,7 +12,7 @@ local function identifier(src)
     return GetPlayerIdentifierByType(src, 'license') or GetPlayerIdentifierByType(src, 'fivem') or ('src:' .. src)
 end
 
-local blockedHosts = { 'youtube.com', 'youtu.be', 'spotify.com', 'soundcloud.com', 'music.apple.com', 'tiktok.com' }
+local blockedHosts = { 'spotify.com', 'soundcloud.com', 'music.apple.com', 'tiktok.com' }
 
 -- Devuelve true, o false + motivo
 local function validUrl(url)
@@ -20,9 +20,16 @@ local function validUrl(url)
     local host = url:match('^https?://([^/%?#:]+)')
     if not host then return false, 'El enlace debe empezar con https://' end
     host = host:lower()
+    if host == 'youtu.be' or host == 'youtube.com' or host:sub(-12) == '.youtube.com' then
+        if url:match('youtu%.be/[%w_%-]+') or url:match('[%?&]v=[%w_%-]+') or url:match('/shorts/[%w_%-]+')
+            or url:match('/embed/[%w_%-]+') or url:match('/live/[%w_%-]+') then
+            return true
+        end
+        return false, 'Enlace de YouTube no valido (debe ser de un video)'
+    end
     for _, h in ipairs(blockedHosts) do
         if host == h or host:sub(-#h - 1) == '.' .. h then
-            return false, 'Ese enlace es una pagina web, no un archivo. Usa un enlace DIRECTO a un .mp3/.wav'
+            return false, 'Ese enlace es una pagina web, no un archivo. Usa YouTube o un enlace DIRECTO a un .mp3/.wav'
         end
     end
     if Config.RequireExtension then

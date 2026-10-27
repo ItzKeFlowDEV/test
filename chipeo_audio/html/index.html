@@ -22,15 +22,15 @@
         <button id="btnClone" class="btn">CLONAR USB</button>
       </div>
       <div class="row">
-        <input id="songUrl" placeholder="Pega el enlace directo .mp3 o .wav aquí...">
+        <input id="songUrl" placeholder="Enlace de YouTube o .mp3 / .wav...">
         <button id="btnSave" class="btn">+ GUARDAR</button>
       </div>
     </div>
 
     <div class="card">
-      <h4>Reproducción rápida (enlace directo)</h4>
+      <h4>Reproducción rápida (YouTube o enlace directo)</h4>
       <div class="row">
-        <input id="quickUrl" placeholder="Pega el enlace de música .mp3 o .wav aquí...">
+        <input id="quickUrl" placeholder="Enlace de YouTube o .mp3 / .wav...">
         <button id="btnQuick" class="btn icon"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></button>
       </div>
     </div>
@@ -82,11 +82,13 @@
       </div>
     </div>
 
+    <div id="ytNote">MODO YOUTUBE · ecualizador y amplificadores no disponibles (solo volumen general)</div>
     <div id="amps"></div>
 
     <div class="foot">CHIPEO <span>SYSTEM</span></div>
   </section>
 </div>
+<div id="ytHost"></div>
 <div id="toast"></div>
 <script src="script.js"></script>
 </body>
