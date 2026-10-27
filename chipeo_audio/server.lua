@@ -12,15 +12,27 @@ local function identifier(src)
     return GetPlayerIdentifierByType(src, 'license') or GetPlayerIdentifierByType(src, 'fivem') or ('src:' .. src)
 end
 
+local blockedHosts = { 'youtube.com', 'youtu.be', 'spotify.com', 'soundcloud.com', 'music.apple.com', 'tiktok.com' }
+
+-- Devuelve true, o false + motivo
 local function validUrl(url)
-    if type(url) ~= 'string' or #url > 500 or not url:match('^https?://[%w%-%._~:/%?#%[%]@!%$&\'%(%)%*%+,;=%%]+$') then
-        return false
+    if type(url) ~= 'string' or #url > 500 then return false, 'Enlace no valido' end
+    local host = url:match('^https?://([^/%?#:]+)')
+    if not host then return false, 'El enlace debe empezar con https://' end
+    host = host:lower()
+    for _, h in ipairs(blockedHosts) do
+        if host == h or host:sub(-#h - 1) == '.' .. h then
+            return false, 'Ese enlace es una pagina web, no un archivo. Usa un enlace DIRECTO a un .mp3/.wav'
+        end
     end
-    local path = url:lower():gsub('[?#].*$', '')
-    for _, ext in ipairs(Config.AllowedExt) do
-        if path:sub(-#ext) == ext then return true end
+    if Config.RequireExtension then
+        local path = url:lower():gsub('[?#].*$', '')
+        for _, ext in ipairs(Config.AllowedExt) do
+            if path:sub(-#ext) == ext then return true end
+        end
+        return false, 'El enlace debe terminar en .mp3, .wav u .ogg'
     end
-    return false
+    return true
 end
 
 local function cleanTitle(t, fallback)
@@ -74,7 +86,8 @@ RegisterNetEvent('chipeo:getLibrary', function() sendLibrary(source) end)
 
 RegisterNetEvent('chipeo:addSong', function(title, url)
     local src = source
-    if not validUrl(url) then return notify(src, 'Enlace no valido. Usa un enlace directo .mp3, .wav u .ogg') end
+    local ok, why = validUrl(url)
+    if not ok then return notify(src, why) end
     local id = identifier(src)
     library[id] = library[id] or {}
     if #library[id] >= Config.MaxSongs then return notify(src, 'Tu biblioteca esta llena') end
@@ -121,8 +134,12 @@ end)
 ---------------------------------------------------------------- reproduccion
 RegisterNetEvent('chipeo:play', function(netId, url, title)
     local src = source
-    if not canControl(src, netId) then return end
-    if not validUrl(url) then return notify(src, 'Enlace no valido') end
+    if not canControl(src, netId) then
+        return notify(src, 'No se pudo controlar el equipo (debes estar dentro del vehiculo)')
+    end
+    local ok, why = validUrl(url)
+    if not ok then return notify(src, why) end
+    if Config.Debug then print(('[chipeo_audio] %s reproduce %s en netId %s'):format(GetPlayerName(src), url, netId)) end
     local old = states[netId]
     states[netId] = {
         url = url,

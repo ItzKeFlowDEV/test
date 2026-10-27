@@ -53,6 +53,10 @@ nui('settings', function(d) TriggerServerEvent('chipeo:settings', currentNetId, 
 nui('ended',    function() TriggerServerEvent('chipeo:ended', currentNetId) end)
 nui('addSong',  function(d) TriggerServerEvent('chipeo:addSong', d.title, d.url) end)
 nui('clone',    function(d) TriggerServerEvent('chipeo:cloneCurrent', currentNetId, d.title) end)
+RegisterNUICallback('audioError', function(d, cb)
+    notify('~r~Audio: ~s~' .. tostring(d.msg))
+    cb('ok')
+end)
 RegisterNUICallback('removeSong', function(d, cb) TriggerServerEvent('chipeo:removeSong', d.id) cb('ok') end)
 
 ---------------------------------------------------------------- vibracion por graves

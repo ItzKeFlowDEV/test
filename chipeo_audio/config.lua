@@ -6,6 +6,8 @@ Config.MaxDistance  = 40.0         -- distancia maxima a la que se escucha desde
 Config.OutsideMuffle = 0.55        -- multiplicador de volumen para quien esta fuera del vehiculo
 Config.MaxSongs     = 50           -- canciones maximas por jugador
 Config.AllowedExt   = { '.mp3', '.wav', '.ogg' }
+Config.RequireExtension = false     -- true: el enlace debe acabar en .mp3/.wav/.ogg
+Config.Debug = false               -- imprime en consola del servidor cada reproduccion
 Config.DriverOnly   = false        -- true: solo el conductor puede abrir/controlar el equipo
 
 -- Vibracion de camara por graves (para quien esta cerca del vehiculo, o dentro)

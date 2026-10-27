@@ -112,7 +112,9 @@ function buildElement(s, fx) {
     if (s.pendingSeek != null) { el.currentTime = Math.min(s.pendingSeek, el.duration || s.pendingSeek); s.pendingSeek = null; }
   });
   el.addEventListener('error', () => {
+    if (el !== s.el || !el.getAttribute('src')) return;
     // Si el servidor remoto no permite CORS, reproducimos sin efectos (EQ desactivado)
+    if (!s.fx && s.netId === currentNet) post('audioError', { msg: ERR[el.error ? el.error.code : 4] });
     if (s.fx && s.url) { const t = el.currentTime; buildElement(s, false); loadUrl(s, s.url, t); applySource(s); if (s.playing) s.el.play().catch(() => {}); }
   });
   el.addEventListener('ended', () => {
@@ -170,7 +172,7 @@ function syncSource(netId, state, serverNow) {
     if (s.el.readyState >= 1) s.el.currentTime = pos; else s.pendingSeek = pos;
   }
   s.playing = state.playing;
-  state.playing ? s.el.play().catch(() => {}) : s.el.pause();
+  state.playing ? s.el.play().catch((e) => { if (netId === currentNet && e.name === 'NotAllowedError') post('audioError', { msg: 'el navegador bloqueo la reproduccion (' + e.name + ')' }); }) : s.el.pause();
   applySource(s);
 
   if (netId === currentNet) {
@@ -242,6 +244,17 @@ function renderSongs() {
   });
 }
 
+// Convierte enlaces de "compartir" comunes en enlaces directos
+function normalizeUrl(u) {
+  u = u.trim();
+  const d = u.match(/drive\.google\.com\/file\/d\/([^/?]+)/);
+  if (d) return `https://drive.google.com/uc?export=download&id=${d[1]}`;
+  if (/dropbox\.com/.test(u)) return u.replace('www.dropbox.com', 'dl.dropboxusercontent.com').replace(/([?&])dl=0/, '$1raw=1');
+  return u;
+}
+const ERR = { 1: 'carga cancelada', 2: 'error de red al descargar el archivo', 3: 'el archivo esta danado o su formato no se puede decodificar',
+              4: 'el enlace no es un archivo de audio directo, esta caido, o es http:// (usa https://)' };
+
 const playSong = (s) => { getCtx(); post('play', { url: s.url, title: s.title }); };
 function step(dir) {
   if (!library.length) return;
@@ -262,14 +275,14 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape') post('clos
 $('btnSave').onclick = () => {
   const url = $('songUrl').value.trim();
   if (!url) return toast('Pega un enlace directo');
-  post('addSong', { title: $('songTitle').value.trim(), url });
+  post('addSong', { title: $('songTitle').value.trim(), url: normalizeUrl(url) });
   $('songUrl').value = ''; $('songTitle').value = '';
 };
 $('btnClone').onclick = () => post('clone', { title: $('songTitle').value.trim() });
 $('btnQuick').onclick = () => {
   const url = $('quickUrl').value.trim();
   if (!url) return;
-  getCtx(); post('play', { url, title: 'Reproducción rápida' }); $('quickUrl').value = '';
+  getCtx(); post('play', { url: normalizeUrl(url), title: 'Reproducción rápida' }); $('quickUrl').value = '';
 };
 $('bPlay').onclick = () => {
   getCtx();
