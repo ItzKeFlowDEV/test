@@ -212,6 +212,9 @@ body:not(.playing) .eqa i{animation-play-state:paused}
 .vwrap{z-index:2}
 /* fila superior */
 .htop{position:absolute;left:226px;right:14px;top:8px;height:28px;display:flex;align-items:center;gap:8px;font:700 8px Arial;color:#9a9ca6}
+.b8d{height:20px;padding:0 8px;border-radius:10px;border:1px solid #2e2f36;cursor:pointer;font:900 italic 10px Arial;color:#6d707b;
+  background:linear-gradient(180deg,#25262c,#0c0c0f);box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 1px 2px #000;transition:.15s}
+.b8d.on{color:#fff;border-color:var(--cyan);text-shadow:0 0 6px var(--cyan);box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 0 10px var(--blue)}
 .mic{display:flex;align-items:center;gap:4px}.mic i{width:9px;height:9px;border-radius:50%;background:#000;box-shadow:inset 0 1px 2px #333}
 .disp{width:22px;height:22px;border-radius:50%;border:0;cursor:pointer;background:radial-gradient(circle at 40% 35%,#3a3b40,#0d0d10);box-shadow:0 1px 2px #000,inset 0 1px 0 rgba(255,255,255,.2);display:grid;place-items:center}
 .disp i{width:6px;height:6px;border-radius:50%;background:var(--cyan);box-shadow:0 0 6px var(--cyan)}

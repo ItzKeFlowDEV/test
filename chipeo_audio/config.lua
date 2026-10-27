@@ -16,6 +16,8 @@ Config.Shake = {
     enabled       = true,
     mode          = 'pulse',                 -- 'pulse' = la camara se aleja y vuelve con cada golpe | 'shake' = temblor
     threshold     = 0.45,                    -- nivel de graves (0-1) a partir del cual reacciona
+    radius        = 30.0,                    -- metros alrededor del vehiculo donde los de afuera sienten el efecto
+    outsideStrength = 0.8,                   -- fuerza del efecto para los de afuera (1.0 = igual que dentro)
     -- modo pulse
     pulseFov      = 7.0,                     -- grados de FOV que se abre en un golpe fuerte
     pulseDistance = 0.6,                     -- metros que la camara retrocede en un golpe fuerte

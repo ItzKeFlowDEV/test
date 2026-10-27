@@ -14,6 +14,7 @@ Sistema de audio de vehículo para FiveM (standalone, sin dependencias, OneSync 
 - Sonido realista alrededor del vehículo: el volumen baja con la distancia, se escucha por el lado (izq/der) donde está el carro y desde fuera suena apagado (retumba el bajo). Con puertas, ventanas o maletero abiertos se escucha más claro. Ajustes: `Config.MaxDistance`, `Config.OutsideMuffle`, `Config.ClosedMuffle`.
 - Radio estilo Pioneer MVH con pantalla de 14 segmentos. Controles:
   - Perilla: volumen · SRC: apagar/detener · Teléfono: silenciar · BAND/DIMMER: cambiar color de luz
+  - 8D: audio 8D opcional (el sonido gira de un lado a otro con eco de sala), apagado por defecto y lo oyen todos
   - BASS: bass boost (+9 dB en graves) · DISP: título / tiempo / pantalla apagada
   - TRACK ⏮ ⏭: canción anterior/siguiente · 1/2: volumen +/- · 3: play · 4: pausa · 5: aleatorio · 6: repetir
 - Iluminación en 6 colores: rojo, naranja, blanco, azul, verde, morado (radio, ecualizadores y botones).
@@ -23,7 +24,7 @@ Sistema de audio de vehículo para FiveM (standalone, sin dependencias, OneSync 
 - 3 amplificadores con VOL, FADER, SUB VOL, FREQ y ecualizador de 7 bandas (50Hz–10K).
 - Knobs: arrastra verticalmente, rueda del ratón, doble clic para resetear.
 - Medidores de temperatura del motor y voltaje.
-- Cámara al ritmo del bajo: con cada golpe de bajo (kick/808) la cámara de quien está cerca o dentro se aleja y vuelve suave a su posición. Más fuerte cuanto más cerca y más alto suene. Se ajusta en `Config.Shake` (`mode = 'pulse'` o `'shake'` para el temblor clásico, `pulseFov`, `pulseDistance`, `pulseRelease`...). Requiere que el enlace permita CORS (no funciona con YouTube).
+- Cámara al ritmo del bajo: con cada golpe de bajo (kick/808) la cámara de quien está dentro **y de los que están afuera cerca** se aleja y vuelve suave a su posición. Más fuerte cuanto más cerca (radio `Config.Shake.radius`, fuerza afuera `outsideStrength`). Se ajusta en `Config.Shake` (`mode = 'pulse'` o `'shake'` para el temblor clásico, `pulseFov`, `pulseDistance`, `pulseRelease`...). Requiere que el enlace permita CORS (no funciona con YouTube).
 
 ## Notas
 - El enlace debe ser directo al archivo de audio. Si el servidor remoto no permite CORS, el audio suena pero sin ecualizador.

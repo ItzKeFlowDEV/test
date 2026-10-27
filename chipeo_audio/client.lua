@@ -72,13 +72,25 @@ RegisterNUICallback('bass', function(d, cb)
     cb('ok')
 end)
 
+-- Cercania al vehiculo que suena: 1 dentro, baja con la distancia fuera (hasta Config.Shake.radius)
+local function beatProximity(netId)
+    local veh = netId and NetworkDoesNetworkIdExist(netId) and NetworkGetEntityFromNetworkId(netId) or 0
+    if veh == 0 or not DoesEntityExist(veh) then return 0.0 end
+    local ped = PlayerPedId()
+    if GetVehiclePedIsIn(ped, false) == veh then return 1.0 end
+    local d = #(GetEntityCoords(ped) - GetEntityCoords(veh))
+    local n = math.max(0.0, 1.0 - d / Config.Shake.radius)
+    return (n ^ 1.3) * Config.Shake.outsideStrength
+end
+
 RegisterNUICallback('beat', function(d, cb)
-    local cfg = Config.Shake
-    local lvl = tonumber(d.level) or 0.0
-    if cfg.enabled and lvl > cfg.threshold then
-        punch = math.max(punch, math.min(1.0, (lvl - cfg.threshold) / (1.0 - cfg.threshold)))
-    end
     cb('ok')
+    local cfg = Config.Shake
+    if not cfg.enabled then return end
+    local lvl = tonumber(d.level) or 0.0
+    if lvl <= cfg.threshold then return end
+    local strength = math.min(1.0, (lvl - cfg.threshold) / (1.0 - cfg.threshold)) * beatProximity(tonumber(d.netId))
+    if strength > 0.02 then punch = math.max(punch, strength) end
 end)
 
 local function canUseScriptCam(own)

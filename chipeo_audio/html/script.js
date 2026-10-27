@@ -21,6 +21,7 @@ function defaultSettings() {
   return {
     master: 0.7,
     bassBoost: false,
+    mode8d: false,
     amps: [0, 1, 2].map(() => ({ vol: 0.5, fader: 0.5, sub: 0.5, freq: 0.4, eq: EQ_FREQS.map(() => 0.5) }))
   };
 }
@@ -143,10 +144,19 @@ function buildElement(s, fx) {
     const muffle = c.createBiquadFilter(); muffle.type = 'lowpass'; muffle.frequency.value = 20000; muffle.Q.value = 0.7;
     const pan = c.createStereoPanner();
     analyser.fftSize = 512; analyser.smoothingTimeConstant = 0.6;
-    node.connect(comp); comp.connect(muffle); muffle.connect(master); master.connect(pan); pan.connect(analyser); analyser.connect(c.destination);
+    // 8D: el sonido gira alrededor de la cabeza (panorama con LFO) + un poco de sala
+    const pan8 = c.createStereoPanner(), lfo = c.createOscillator(), lfoAmt = c.createGain();
+    lfo.frequency.value = 0.12; lfoAmt.gain.value = 0; lfo.connect(lfoAmt); lfoAmt.connect(pan8.pan); lfo.start();
+    const verb = c.createConvolver(), wet = c.createGain(), dry = c.createGain();
+    verb.buffer = roomImpulse(c); wet.gain.value = 0; dry.gain.value = 1;
+    node.connect(comp); comp.connect(dry); comp.connect(verb); verb.connect(wet);
+    dry.connect(pan8); wet.connect(pan8);
+    pan8.connect(muffle); muffle.connect(master); master.connect(pan); pan.connect(analyser); analyser.connect(c.destination);
+    // golpes medidos ANTES del volumen por distancia: la fuerza por cercania la aplica el cliente Lua
     const beatAn = c.createAnalyser(); beatAn.fftSize = 512; beatAn.smoothingTimeConstant = 0.15;
-    pan.connect(beatAn);
-    s.nodes = { stages, master, analyser, muffle, pan, boost, beatAn };
+    comp.connect(beatAn);
+    s.nodes = { stages, master, analyser, muffle, pan, boost, beatAn, lfoAmt, wet, dry };
+    s.beat = { hist: [0], prev: 0, last: 0 };
   }
 }
 
@@ -160,6 +170,15 @@ function ensureCtxRunning(s) {
     if (s.playing) s.el.play().catch(() => {});
     if (s.netId === currentNet) post('audioError', { msg: 'audio en modo simple (sin ecualizador): el motor de audio no pudo iniciarse' });
   }, 300));
+}
+
+function roomImpulse(c) {
+  const len = Math.floor(c.sampleRate * 1.8), buf = c.createBuffer(2, len, c.sampleRate);
+  for (let ch = 0; ch < 2; ch++) {
+    const d = buf.getChannelData(ch);
+    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3);
+  }
+  return buf;
 }
 
 function loadUrl(s, url, seek) {
@@ -176,6 +195,9 @@ function applySource(s) {
   const t = AC.currentTime;
   s.nodes.master.gain.setTargetAtTime(level * 1.2, t, 0.05);
   s.nodes.boost.gain.setTargetAtTime(st.bassBoost ? 9 : 0, t, 0.1);
+  s.nodes.lfoAmt.gain.setTargetAtTime(st.mode8d ? 0.95 : 0, t, 0.3);
+  s.nodes.wet.gain.setTargetAtTime(st.mode8d ? 0.35 : 0, t, 0.3);
+  s.nodes.dry.gain.setTargetAtTime(st.mode8d ? 0.85 : 1, t, 0.3);
   s.nodes.pan.pan.setTargetAtTime(clamp(s.pan || 0, -1, 1), t, 0.1);
   // 0 = limpio (20 kHz), 1 = muy apagado (~250 Hz): fuera del carro solo retumba el bajo
   s.nodes.muffle.frequency.setTargetAtTime(20000 * Math.pow(250 / 20000, clamp(s.muffle || 0)), t, 0.1);
@@ -314,6 +336,7 @@ function refreshKnobs() {
   // los knobs leen `settings` por referencia; reconstruimos para enlazar a los nuevos objetos
   buildAmps(); bindMaster(); updateVolPill();
   $('bBass').classList.toggle('on', !!settings.bassBoost);
+  $('b8d').classList.toggle('on', !!settings.mode8d);
 }
 function bindMaster() {
   const el = $('knob-master');
@@ -499,6 +522,11 @@ $('bVolDn').onclick = () => nudgeVol(-0.025);
 $('bShuf').onclick = () => { shuffle = !shuffle; lcdFlash(shuffle ? 'SHUFFLE ON' : 'SHUFFLE OFF'); refreshDisplay(); };
 $('bRep').onclick = () => { repeat = !repeat; lcdFlash(repeat ? 'REPEAT ONE' : 'REPEAT OFF'); refreshDisplay(); };
 $('bDisp').onclick = () => { dispMode = (dispMode + 1) % 3; lcdFlash(['TITLE', 'TIME', 'DISP OFF'][dispMode], 900); };
+$('b8d').onclick = () => {
+  settings.mode8d = !settings.mode8d;
+  $('b8d').classList.toggle('on', settings.mode8d);
+  lcdFlash(settings.mode8d ? '8D AUDIO ON' : '8D AUDIO OFF'); onKnob();
+};
 $('bBass').onclick = () => {
   settings.bassBoost = !settings.bassBoost;
   $('bBass').classList.toggle('on', settings.bassBoost);
@@ -543,33 +571,34 @@ requestAnimationFrame(frame);
 /* ============ Analisis de graves -> vibracion de pantalla (cliente Lua) ============ */
 let lastBass = 0;
 setInterval(() => {
-  let max = 0, own = 0, kick = 0;
+  let max = 0, own = 0;
   for (const id in sources) {
     const src = sources[id];
     if (!src.nodes || !src.playing || src.factor < 0.02) continue;
     src.nodes.analyser.getByteFrequencyData(fbuf);
     const b = (fbuf[0] * 0.35 + fbuf[1] * 0.4 + fbuf[2] * 0.25) / 255;
-    src.nodes.beatAn.getByteFrequencyData(fbuf);
-    const k = (fbuf[0] * 0.35 + fbuf[1] * 0.4 + fbuf[2] * 0.25) / 255;
-    if (k > kick) kick = k;
+    detectBeat(src, id);
     if (b > max) max = b;
     if (String(id) === String(currentNet)) own = b;
   }
   ownBass = ownBass * 0.5 + own * 0.5;
   if (Math.abs(max - lastBass) > 0.03 || (max === 0 && lastBass !== 0)) { lastBass = max; post('bass', { level: max }); }
-
-  // deteccion de golpes de bajo (kick / 808): subida brusca respecto al minimo reciente
-  const now = performance.now();
-  const floor = Math.min(...bassHist);
-  if (kick > 0.3 && kick - floor > 0.15 && kick >= prevMax && now - lastBeat > 170) {
-    lastBeat = now;
-    post('beat', { level: kick });
-  }
-  bassHist.push(kick); if (bassHist.length > 5) bassHist.shift();   // ~200 ms de historial
-  prevMax = kick;
 }, 40);
-const bassHist = [0];
-let prevMax = 0, lastBeat = 0;
+
+// golpe de bajo (kick / 808): subida brusca respecto al minimo de los ultimos ~200 ms
+function detectBeat(src, id) {
+  const bt = src.beat;
+  src.nodes.beatAn.getByteFrequencyData(fbuf);
+  const k = (fbuf[0] * 0.35 + fbuf[1] * 0.4 + fbuf[2] * 0.25) / 255;
+  const now = performance.now();
+  if (k > 0.3 && k - Math.min(...bt.hist) > 0.15 && k >= bt.prev && now - bt.last > 170) {
+    bt.last = now;
+    // el volumen general del equipo tambien cuenta (con el equipo bajito casi no se mueve)
+    post('beat', { netId: Number(id), level: k * clamp(src.settings.master * 1.4) });
+  }
+  bt.hist.push(k); if (bt.hist.length > 5) bt.hist.shift();
+  bt.prev = k;
+}
 
 /* ============================ Mensajes del juego ============================ */
 window.addEventListener('message', ({ data: d }) => {
