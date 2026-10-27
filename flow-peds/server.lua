@@ -16,8 +16,48 @@ local function notify(src, msg, kind)
     TriggerClientEvent('flowpeds:notify', src, msg, kind or 'info')
 end
 
+---------------------------------------------------------------- permisos
+local ESX, QBCore
+CreateThread(function()
+    if GetResourceState('es_extended') == 'started' then
+        pcall(function() ESX = exports['es_extended']:getSharedObject() end)
+    end
+    if GetResourceState('qb-core') == 'started' then
+        pcall(function() QBCore = exports['qb-core']:GetCoreObject() end)
+    end
+end)
+
+local function inGroups(g)
+    if type(g) ~= 'string' then return false end
+    for _, name in ipairs(Config.AdminGroups) do
+        if g == name then return true end
+    end
+    return false
+end
+
 local function isAdmin(src)
+    -- ACE: permiso propio, 'command' (group.admin de txAdmin) y group.<grupo> (QBox / ox_core)
     if IsPlayerAceAllowed(src, Config.AdminAce) then return true end
+    if Config.AceCommandIsAdmin and IsPlayerAceAllowed(src, 'command') then return true end
+    for _, g in ipairs(Config.AdminGroups) do
+        if IsPlayerAceAllowed(src, 'group.' .. g) then return true end
+    end
+    -- ESX
+    if ESX then
+        local ok, res = pcall(function()
+            local xPlayer = ESX.GetPlayerFromId(src)
+            return xPlayer and inGroups(xPlayer.getGroup())
+        end)
+        if ok and res then return true end
+    end
+    -- QBCore
+    if QBCore then
+        for _, g in ipairs(Config.AdminGroups) do
+            local ok, res = pcall(QBCore.Functions.HasPermission, src, g)
+            if ok and res then return true end
+        end
+    end
+    -- identificadores
     for _, id in ipairs(GetPlayerIdentifiers(src)) do
         for _, admin in ipairs(Config.Admins) do
             if id == admin then return true end
@@ -25,6 +65,7 @@ local function isAdmin(src)
     end
     return false
 end
+exports('isAdmin', isAdmin)
 
 local function pedsOf(src)
     local lic = license(src)

@@ -7,9 +7,13 @@ Asignación de peds por jugador con panel de administración y menú NUI. Standa
 2. En `server.cfg`:
    ```
    ensure flow-peds
-   add_ace group.admin flowpeds.admin allow
    ```
-   (o pon los identificadores de los admins en `Config.Admins`).
+   No hace falta nada más para los admins: `/pedadmin` lo pueden usar
+   - los **group.admin** de ACE / txAdmin (los que tienen `add_ace group.admin command allow`, que viene por defecto),
+   - los grupos de admin de **ESX** (`admin`, `superadmin`...) y **QBCore** (`admin`, `god`...), y **QBox/ox** por `group.admin`,
+   - cualquiera con el permiso `flowpeds.admin`, o con su identificador en `Config.Admins`.
+
+   Los grupos se cambian en `Config.AdminGroups`. Si quieres que solo entren los que tengan `flowpeds.admin`, pon `Config.AceCommandIsAdmin = false` y deja `Config.AdminGroups = {}`.
 
 ## Comandos
 - `/pedadmin` (solo admins): lista los jugadores conectados. Eliges a uno, escribes el modelo del ped (ej. `s_m_y_cop_01`) y un nombre opcional, y pulsas **Dar acceso**. Desde ahí también le quitas peds (botón ✕ en la tarjeta). El modelo se valida antes de guardarlo: si no existe en el juego / servidor, avisa.
