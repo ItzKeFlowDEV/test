@@ -59,37 +59,90 @@ RegisterNUICallback('audioError', function(d, cb)
 end)
 RegisterNUICallback('removeSong', function(d, cb) TriggerServerEvent('chipeo:removeSong', d.id) cb('ok') end)
 
----------------------------------------------------------------- vibracion por graves
+---------------------------------------------------------------- camara al ritmo del bajo
 -- El NUI mide los graves ya atenuados por distancia y volumen y los envia aqui.
+-- Modo 'pulse': en cada golpe de bajo la camara se aleja (FOV + retroceso) y vuelve suave a su sitio.
+-- Modo 'shake': temblor clasico de camara mientras el bajo este fuerte.
 local bassLevel = 0.0
+local punch = 0.0      -- impulso objetivo (0-1)
+local pulse = 0.0      -- valor suavizado aplicado a la camara
 
 RegisterNUICallback('bass', function(d, cb)
     bassLevel = tonumber(d.level) or 0.0
     cb('ok')
 end)
 
-CreateThread(function()
-    local shaking = false
+RegisterNUICallback('beat', function(d, cb)
     local cfg = Config.Shake
+    local lvl = tonumber(d.level) or 0.0
+    if cfg.enabled and lvl > cfg.threshold then
+        punch = math.max(punch, math.min(1.0, (lvl - cfg.threshold) / (1.0 - cfg.threshold)))
+    end
+    cb('ok')
+end)
+
+local function canUseScriptCam(own)
+    if IsPauseMenuActive() or IsPlayerSwitchInProgress() then return false end
+    local rendering = GetRenderingCam()
+    return rendering == -1 or rendering == own
+end
+
+CreateThread(function()
+    local cfg = Config.Shake
+    local cam, active = nil, false
+    local shaking = false
     while true do
-        if cfg.enabled and (bassLevel > cfg.threshold or shaking) then
+        if not cfg.enabled then
+            Wait(500)
+        elseif cfg.mode == 'shake' then
+            -- temblor clasico
             local amp = math.max(0.0, (bassLevel - cfg.threshold) / (1.0 - cfg.threshold)) * cfg.maxAmplitude
             if amp > 0.02 then
-                if IsGameplayCamShaking() then
-                    SetGameplayCamShakeAmplitude(amp)
-                else
-                    ShakeGameplayCam(cfg.camShake, amp)
-                end
+                if IsGameplayCamShaking() then SetGameplayCamShakeAmplitude(amp) else ShakeGameplayCam(cfg.camShake, amp) end
                 shaking = true
             elseif shaking then
                 StopGameplayCamShaking(true)
                 shaking = false
             end
-            Wait(0)
+            Wait(shaking and 0 or 150)
         else
-            Wait(150)
+            -- pulso: alejar y volver
+            local dt = GetFrameTime()
+            pulse = pulse + (punch - pulse) * math.min(1.0, dt * cfg.pulseAttack)   -- sube rapido
+            punch = punch * (cfg.pulseRelease ^ (dt * 60.0))                        -- vuelve suave
+            if pulse < 0.003 and punch < 0.003 then pulse, punch = 0.0, 0.0 end
+
+            if pulse > 0.0 and canUseScriptCam(cam) then
+                if not cam then cam = CreateCam('DEFAULT_SCRIPTED_CAMERA', false) end
+                local pos, rot, fov = GetGameplayCamCoord(), GetGameplayCamRot(2), GetGameplayCamFov()
+                local p, h = math.rad(rot.x), math.rad(rot.z)
+                local fx, fy, fz = -math.sin(h) * math.cos(p), math.cos(h) * math.cos(p), math.sin(p)
+                local back = pulse * cfg.pulseDistance
+                SetCamCoord(cam, pos.x - fx * back, pos.y - fy * back, pos.z - fz * back)
+                SetCamRot(cam, rot.x, rot.y, rot.z, 2)
+                SetCamFov(cam, math.min(110.0, fov + pulse * cfg.pulseFov))
+                if not active then
+                    SetCamActive(cam, true)
+                    RenderScriptCams(true, false, 0, false, false)
+                    active = true
+                end
+                Wait(0)
+            else
+                if active then
+                    RenderScriptCams(false, false, 0, false, false)
+                    SetCamActive(cam, false)
+                    active = false
+                end
+                Wait(punch > 0 and 0 or 50)
+            end
         end
     end
+end)
+
+AddEventHandler('onResourceStop', function(res)
+    if res ~= GetCurrentResourceName() then return end
+    if GetRenderingCam() ~= -1 then RenderScriptCams(false, false, 0, false, false) end
+    StopGameplayCamShaking(true)
 end)
 
 ---------------------------------------------------------------- diagnostico (/chipeo_debug)

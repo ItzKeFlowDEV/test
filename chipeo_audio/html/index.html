@@ -11,32 +11,45 @@
   <!-- ===== BIBLIOTECA + CAJON DE BAJOS ===== -->
   <section id="library" class="panel glass">
     <header>
-      <div class="title"><i class="note"></i><span>MI BIBLIOTECA MUSICAL</span></div>
+      <div class="title">
+        <i class="note"></i>
+        <div><span>MI BIBLIOTECA</span><small id="libCount">USB · 0 canciones</small></div>
+      </div>
       <button class="x" data-close>&times;</button>
     </header>
 
-    <div class="card">
-      <h4>Añadir a la biblioteca</h4>
-      <div class="row">
-        <input id="songTitle" maxlength="40" placeholder="Título de la canción (Opcional)...">
-        <button id="btnClone" class="btn">CLONAR USB</button>
-      </div>
-      <div class="row">
-        <input id="songUrl" placeholder="Enlace de YouTube o .mp3 / .wav...">
-        <button id="btnSave" class="btn">+ GUARDAR</button>
-      </div>
-    </div>
-
-    <div class="card">
-      <h4>Reproducción rápida (YouTube o enlace directo)</h4>
-      <div class="row">
-        <input id="quickUrl" placeholder="Enlace de YouTube o .mp3 / .wav...">
-        <button id="btnQuick" class="btn icon"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></button>
+    <!-- sonando ahora -->
+    <div class="np">
+      <div class="art" id="npArt"><div class="disc"></div><div class="artglow"></div></div>
+      <div class="npmain">
+        <small id="npState">DETENIDO</small>
+        <b id="npTitle">Nada sonando</b>
+        <span id="npSrc" class="npsrc">Elige una canción o pega un enlace</span>
+        <div class="npbar"><i id="npProg"></i></div>
+        <div class="nptime"><span id="npCur">0:00</span><div class="bars" id="npBars"><i></i><i></i><i></i><i></i><i></i></div><span id="npDur">0:00</span></div>
       </div>
     </div>
 
-    <div class="card grow">
-      <h4>Mi biblioteca musical</h4>
+    <!-- añadir -->
+    <div class="add">
+      <div class="urlbox">
+        <span id="urlKind" class="kind">LINK</span>
+        <input id="songUrl" placeholder="Pega un enlace de YouTube o .mp3 / .wav">
+      </div>
+      <input id="songTitle" maxlength="40" placeholder="Nombre de la canción (opcional)">
+      <div class="addbtns">
+        <button id="btnQuick" class="abtn play"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>Reproducir</button>
+        <button id="btnSave" class="abtn save"><svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z"/></svg>Guardar</button>
+        <button id="btnClone" class="abtn clone" title="Guarda en tu biblioteca lo que suena ahora en el vehículo"><svg viewBox="0 0 24 24"><path d="M15 7v4h1v2h-3V5h2l-3-4-3 4h2v8H8v-2.1c.7-.4 1.2-1.1 1.2-1.9 0-1.2-1-2.2-2.2-2.2S4.8 7.8 4.8 9c0 .8.5 1.5 1.2 1.9V13c0 1.1.9 2 2 2h3v3.1c-.7.4-1.2 1.1-1.2 1.9 0 1.2 1 2.2 2.2 2.2s2.2-1 2.2-2.2c0-.8-.5-1.5-1.2-1.9V15h3c1.1 0 2-.9 2-2v-2h1V7h-4z"/></svg>Clonar USB</button>
+      </div>
+    </div>
+
+    <!-- lista -->
+    <div class="list">
+      <div class="listhead">
+        <h4>Canciones</h4>
+        <div class="search"><svg viewBox="0 0 24 24"><path d="M15.5 14h-.8l-.3-.3c1-1.1 1.6-2.6 1.6-4.2a6.5 6.5 0 1 0-6.5 6.5c1.6 0 3.1-.6 4.2-1.6l.3.3v.8l5 5 1.5-1.5-5-5zm-6 0C7 14 5 12 5 9.5S7 5 9.5 5 14 7 14 9.5 12 14 9.5 14z"/></svg><input id="search" placeholder="Buscar"></div>
+      </div>
       <div id="songs"></div>
     </div>
 
@@ -45,12 +58,7 @@
       <div class="carpet"></div>
       <div class="woofer"><div class="surround"><div class="cone"><div class="dust"></div></div></div></div>
       <div class="woofer"><div class="surround"><div class="cone"><div class="dust"></div></div></div></div>
-      <div class="badge">CHIPEO <span>12"</span></div>
-    </div>
-
-    <div class="nowplaying">
-      <div class="npinfo"><b id="npTitle">Nada sonando</b><small id="npState">DETENIDO</small></div>
-      <div class="bars" id="npBars"><i></i><i></i><i></i><i></i><i></i></div>
+      <div class="badge">CHIPEO <span>2 × 12"</span></div>
     </div>
   </section>
 

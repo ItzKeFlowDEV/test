@@ -11,10 +11,17 @@ Config.RequireExtension = false     -- true: el enlace debe acabar en .mp3/.wav/
 Config.Debug = false               -- imprime en consola del servidor cada reproduccion
 Config.DriverOnly   = false        -- true: solo el conductor puede abrir/controlar el equipo
 
--- Vibracion de camara por graves (para quien esta cerca del vehiculo, o dentro)
+-- Camara al ritmo del bajo (para quien esta cerca del vehiculo, o dentro)
 Config.Shake = {
-    enabled      = true,
-    threshold    = 0.55,                    -- nivel de graves (0-1) a partir del cual empieza a vibrar
-    maxAmplitude = 0.45,                    -- vibracion maxima de camara
-    camShake     = 'SMALL_EXPLOSION_SHAKE'  -- tipo de shake de GTA
+    enabled       = true,
+    mode          = 'pulse',                 -- 'pulse' = la camara se aleja y vuelve con cada golpe | 'shake' = temblor
+    threshold     = 0.45,                    -- nivel de graves (0-1) a partir del cual reacciona
+    -- modo pulse
+    pulseFov      = 7.0,                     -- grados de FOV que se abre en un golpe fuerte
+    pulseDistance = 0.6,                     -- metros que la camara retrocede en un golpe fuerte
+    pulseAttack   = 28.0,                    -- velocidad de alejarse (mas alto = golpe mas seco)
+    pulseRelease  = 0.88,                    -- velocidad de volver (0.80 rapido - 0.95 lento)
+    -- modo shake
+    maxAmplitude  = 0.45,
+    camShake      = 'SMALL_EXPLOSION_SHAKE'
 }

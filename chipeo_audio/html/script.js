@@ -144,7 +144,9 @@ function buildElement(s, fx) {
     const pan = c.createStereoPanner();
     analyser.fftSize = 512; analyser.smoothingTimeConstant = 0.6;
     node.connect(comp); comp.connect(muffle); muffle.connect(master); master.connect(pan); pan.connect(analyser); analyser.connect(c.destination);
-    s.nodes = { stages, master, analyser, muffle, pan, boost };
+    const beatAn = c.createAnalyser(); beatAn.fftSize = 512; beatAn.smoothingTimeConstant = 0.15;
+    pan.connect(beatAn);
+    s.nodes = { stages, master, analyser, muffle, pan, boost, beatAn };
   }
 }
 
@@ -367,24 +369,52 @@ function refreshDisplay() {
   $('ledPwr').classList.toggle('on', !!st);
   $('ledUsb').classList.toggle('on', !!(st && st.playing));
   $('npTitle').textContent = st ? currentTitle() : 'Nada sonando';
+  $('npSrc').textContent = st ? sourceLabel(st.url) : 'Elige una canción o pega un enlace';
   $('npState').textContent = !st ? 'DETENIDO' : st.playing ? 'REPRODUCIENDO' : 'EN PAUSA';
   document.body.classList.toggle('playing', !!(st && st.playing));
   if (ys && ys.kind === 'yt') document.querySelector('.model').textContent = 'YOUTUBE'; else document.querySelector('.model').textContent = 'MVH-S235BT';
 }
 
+const ICON_DEL = '<svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>';
+function hostOf(u) { try { return new URL(u).hostname.replace(/^www\./, ''); } catch (e) { return ''; } }
+function kindOf(u) {
+  if (!u) return '';
+  if (ytId(u)) return 'yt';
+  if (/^https?:\/\//i.test(u)) return 'file';
+  return 'bad';
+}
+function sourceLabel(u) {
+  if (ytId(u)) return 'YouTube';
+  const ext = (u.split(/[?#]/)[0].match(/\.(mp3|wav|ogg)$/i) || [])[1];
+  return (ext ? ext.toUpperCase() + ' · ' : '') + hostOf(u);
+}
+
 function renderSongs() {
   const host = $('songs');
-  if (!library.length) { host.innerHTML = '<div class="empty">Tu biblioteca está vacía</div>'; return; }
+  const q = ($('search').value || '').trim().toLowerCase();
+  $('libCount').textContent = `USB · ${library.length} ${library.length === 1 ? 'canción' : 'canciones'}`;
+  if (!library.length) {
+    host.innerHTML = '<div class="empty"><b>&#9835;</b>Tu biblioteca está vacía.<br>Pega un enlace arriba y pulsa <u>Guardar</u>.</div>';
+    return;
+  }
   host.innerHTML = '';
-  library.forEach((s) => {
+  let shown = 0;
+  library.forEach((s, i) => {
+    if (q && !s.title.toLowerCase().includes(q)) return;
+    shown++;
+    const k = kindOf(s.url);
     const d = document.createElement('div');
     d.className = 'song' + (serverState && serverState.url === s.url ? ' active' : '');
-    d.innerHTML = `<div><b></b><small>Memoria Radio</small></div><button class="del" title="Eliminar">&#128465;</button>`;
+    d.innerHTML = `<span class="idx">${String(i + 1).padStart(2, '0')}</span><span class="pl">&#9654;</span><span class="eqa"><i></i><i></i><i></i></span>
+      <span class="stype ${k}">${k === 'yt' ? 'YT' : 'MP3'}</span><div class="info"><b></b><small></small></div>
+      <button class="del" title="Eliminar">${ICON_DEL}</button>`;
     d.querySelector('b').textContent = s.title;
+    d.querySelector('small').textContent = sourceLabel(s.url);
     d.addEventListener('click', () => playSong(s));
     d.querySelector('.del').addEventListener('click', (e) => { e.stopPropagation(); post('removeSong', { id: s.id }); });
     host.appendChild(d);
   });
+  if (!shown) host.innerHTML = '<div class="empty">Sin resultados</div>';
 }
 
 // Convierte enlaces de "compartir" comunes en enlaces directos
@@ -432,16 +462,28 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape') post('clos
 
 $('btnSave').onclick = () => {
   const url = $('songUrl').value.trim();
-  if (!url) return toast('Pega un enlace directo');
+  if (!url) return toast('Pega un enlace de YouTube o .mp3');
   post('addSong', { title: $('songTitle').value.trim(), url: normalizeUrl(url) });
-  $('songUrl').value = ''; $('songTitle').value = '';
+  $('songUrl').value = ''; $('songTitle').value = ''; updateKind();
 };
 $('btnClone').onclick = () => post('clone', { title: $('songTitle').value.trim() });
 $('btnQuick').onclick = () => {
-  const url = $('quickUrl').value.trim();
-  if (!url) return;
-  getCtx(); { const u = normalizeUrl(url); post('play', { url: u, title: titleFromUrl(u) }); } $('quickUrl').value = '';
+  const url = $('songUrl').value.trim();
+  if (!url) return toast('Pega un enlace de YouTube o .mp3');
+  getCtx();
+  const u = normalizeUrl(url);
+  post('play', { url: u, title: $('songTitle').value.trim() || titleFromUrl(u) });
+  $('songUrl').value = ''; $('songTitle').value = ''; updateKind();
 };
+function updateKind() {
+  const k = kindOf($('songUrl').value.trim());
+  const el = $('urlKind');
+  el.className = 'kind ' + k;
+  el.textContent = { yt: 'YOUTUBE', file: 'AUDIO', bad: 'NO VÁLIDO' }[k] || 'LINK';
+}
+$('songUrl').addEventListener('input', updateKind);
+$('songUrl').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('btnQuick').click(); });
+$('search').addEventListener('input', renderSongs);
 $('bPlay').onclick = () => {
   getCtx();
   if (!serverState) { if (library[0]) playSong(library[0]); else lcdFlash('NO MUSIC'); }
@@ -486,8 +528,12 @@ function frame(now) {
       const p = (cur(s) / dur(s)) * 1000;
       $('seek').value = p; $('seek').style.setProperty('--prog', p / 10 + '%');
     } else if (!s) $('seek').style.setProperty('--prog', '0%');
+    const d = s ? dur(s) : 0;
+    $('npProg').style.width = d ? (cur(s) / d) * 100 + '%' : '0%';
+    $('npCur').textContent = fmt(s && d ? cur(s) : 0).replace(/^0/, '');
+    $('npDur').textContent = fmt(d).replace(/^0/, '');
     const live = s && s.playing;
-    npBars.forEach((b, i) => { b.style.height = (live ? 4 + Math.max(0, Math.min(1, ownBass + Math.sin(now / (120 + i * 40)) * 0.25)) * 18 : 4) + 'px'; });
+    npBars.forEach((b, i) => { b.style.height = (live ? 3 + Math.max(0, Math.min(1, ownBass + Math.sin(now / (120 + i * 40)) * 0.3)) * 11 : 3) + 'px'; });
     document.documentElement.style.setProperty('--bass', Math.max(0, (ownBass - 0.35) / 0.65).toFixed(3));
   }
   requestAnimationFrame(frame);
@@ -497,18 +543,33 @@ requestAnimationFrame(frame);
 /* ============ Analisis de graves -> vibracion de pantalla (cliente Lua) ============ */
 let lastBass = 0;
 setInterval(() => {
-  let max = 0, own = 0;
+  let max = 0, own = 0, kick = 0;
   for (const id in sources) {
     const src = sources[id];
     if (!src.nodes || !src.playing || src.factor < 0.02) continue;
     src.nodes.analyser.getByteFrequencyData(fbuf);
     const b = (fbuf[0] * 0.35 + fbuf[1] * 0.4 + fbuf[2] * 0.25) / 255;
+    src.nodes.beatAn.getByteFrequencyData(fbuf);
+    const k = (fbuf[0] * 0.35 + fbuf[1] * 0.4 + fbuf[2] * 0.25) / 255;
+    if (k > kick) kick = k;
     if (b > max) max = b;
     if (String(id) === String(currentNet)) own = b;
   }
   ownBass = ownBass * 0.5 + own * 0.5;
   if (Math.abs(max - lastBass) > 0.03 || (max === 0 && lastBass !== 0)) { lastBass = max; post('bass', { level: max }); }
-}, 60);
+
+  // deteccion de golpes de bajo (kick / 808): subida brusca respecto al minimo reciente
+  const now = performance.now();
+  const floor = Math.min(...bassHist);
+  if (kick > 0.3 && kick - floor > 0.15 && kick >= prevMax && now - lastBeat > 170) {
+    lastBeat = now;
+    post('beat', { level: kick });
+  }
+  bassHist.push(kick); if (bassHist.length > 5) bassHist.shift();   // ~200 ms de historial
+  prevMax = kick;
+}, 40);
+const bassHist = [0];
+let prevMax = 0, lastBeat = 0;
 
 /* ============================ Mensajes del juego ============================ */
 window.addEventListener('message', ({ data: d }) => {
