@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Flow Peds</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ===================== MENU DEL JUGADOR ===================== -->
+<section id="menu" class="panel hidden">
+  <header class="phead">
+    <div class="hex"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></svg></div>
+    <div class="ptitle"><b>MIS PEDS</b><small id="menuSub">Flow Peds</small></div>
+    <button class="xbtn" data-close><svg viewBox="0 0 24 24"><path d="M7 7l10 10M17 7L7 17"/></svg></button>
+  </header>
+
+  <div class="search tile">
+    <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>
+    <input id="menuSearch" placeholder="Buscar ped...">
+  </div>
+
+  <button class="normal tile" id="btnNormal">
+    <span class="nicon"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-5h4v5"/></svg></span>
+    <span class="ntext"><b>Personaje normal</b><small>Volver a tu ropa y apariencia de siempre</small></span>
+    <span class="pill" id="normalPill">EN USO</span>
+  </button>
+
+  <div class="sectlbl"><span>Peds disponibles</span><em id="menuCount">0</em></div>
+  <div class="grid" id="pedGrid"></div>
+
+  <footer class="hint"><kbd>ESC</kbd> cerrar · clic en un ped para ponértelo</footer>
+</section>
+
+<!-- ===================== PANEL ADMIN ===================== -->
+<section id="admin" class="panel wide hidden">
+  <header class="phead">
+    <div class="hex"><svg viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6z"/><path d="M9 12l2 2 4-4"/></svg></div>
+    <div class="ptitle"><b>PED ADMIN</b><small>Dar acceso a peds a jugadores conectados</small></div>
+    <button class="ghost tile" id="btnRefresh" title="Actualizar"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.7"/><path d="M20 4v5h-5"/></svg></button>
+    <button class="xbtn" data-close><svg viewBox="0 0 24 24"><path d="M7 7l10 10M17 7L7 17"/></svg></button>
+  </header>
+
+  <div class="acols">
+    <!-- jugadores -->
+    <div class="acol">
+      <div class="search tile">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>
+        <input id="playerSearch" placeholder="Buscar por ID o nombre...">
+      </div>
+      <div class="sectlbl"><span>Jugadores conectados</span><em id="playerCount">0</em></div>
+      <div class="plist" id="playerList"></div>
+    </div>
+
+    <!-- jugador seleccionado -->
+    <div class="acol main" id="selBox">
+      <div class="empty big" id="selEmpty">
+        <div class="hex ghosthex"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></svg></div>
+        <b>Selecciona un jugador</b><small>Elige a alguien de la lista para darle o quitarle peds</small>
+      </div>
+
+      <div id="selContent" class="hidden">
+        <div class="selhead">
+          <span class="idpill" id="selId">#0</span>
+          <div><b id="selName">—</b><small id="selInfo">0 peds asignados</small></div>
+        </div>
+
+        <div class="grantbox">
+          <div class="gprev" id="grantPrev"><img id="grantImg" alt=""><span class="sil"></span></div>
+          <div class="gform">
+            <label>Modelo del ped</label>
+            <div class="field tile"><input id="grantModel" placeholder="ej. a_m_y_hipster_01, s_m_y_cop_01..."></div>
+            <label>Nombre para mostrar <i>(opcional)</i></label>
+            <div class="field tile"><input id="grantLabel" maxlength="32" placeholder="ej. Policía, Hipster..."></div>
+            <button class="primary" id="btnGrant"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Dar acceso</button>
+          </div>
+        </div>
+
+        <div class="sectlbl"><span>Peds de este jugador</span><em id="selCount">0</em></div>
+        <div class="grid small" id="selGrid"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div id="toasts"></div>
+<script src="script.js"></script>
+</body>
+</html>
