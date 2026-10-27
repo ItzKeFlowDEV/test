@@ -34,7 +34,11 @@ window.addEventListener('mousemove', (e) => {
 window.addEventListener('mouseup', () => { activeDrag = null; });
 
 function makeKnob(el, get, set, onChange) {
-  const draw = () => el.style.setProperty('--a', `${-135 + get() * 270}deg`);
+  if (!el.firstChild) el.innerHTML = '<i class="ring"></i><i class="cap"><i class="ptr"></i></i>';
+  const draw = () => {
+    el.style.setProperty('--a', `${-135 + get() * 270}deg`);
+    el.style.setProperty('--p', get());
+  };
   draw();
   el.addEventListener('mousedown', (e) => {
     activeDrag = { set, draw, onChange, startY: e.clientY, startV: get() };
@@ -51,13 +55,13 @@ function buildAmps() {
   settings.amps.forEach((amp, i) => {
     const wrap = document.createElement('div');
     wrap.className = 'amp';
-    wrap.innerHTML = `<div class="amphead"><b>TARAMPS</b><span>TEQ7.4</span></div><div class="knobs"></div>
+    wrap.innerHTML = `<div class="amphead"><b>TARAMPS</b><span class="meta"><i class="led pwr"></i><i class="led clip"></i>TEQ7.4</span></div><div class="knobs"></div>
       <div class="eqtag">7 BAND GRAPHIC EQUALIZER</div>`;
     const row = wrap.querySelector('.knobs');
     const cell = (label, getter, setter, cls = '') => {
       const c = document.createElement('div');
       c.className = 'kcell ' + cls;
-      c.innerHTML = `<div class="knob ${cls.includes('sub') ? 'red-k' : ''}"></div><span>${label}</span>`;
+      c.innerHTML = `<div class="knob"></div><span>${label}</span>`;
       row.appendChild(c);
       makeKnob(c.firstChild, getter, setter, onKnob);
       knobs.push(c.firstChild);
@@ -129,7 +133,7 @@ function buildElement(s, fx) {
       node = n; stages.push({ trim, vol, sub, eq });
     }
     const comp = c.createDynamicsCompressor(), master = c.createGain(), analyser = c.createAnalyser();
-    analyser.fftSize = 64;
+    analyser.fftSize = 512; analyser.smoothingTimeConstant = 0.6;
     node.connect(comp); comp.connect(master); master.connect(analyser); analyser.connect(c.destination);
     s.nodes = { stages, master, analyser };
   }
@@ -210,7 +214,17 @@ function refreshDisplay() {
   $('track').textContent = st ? st.title : '—';
   const idx = st ? library.findIndex((s) => s.url === st.url) : -1;
   $('trk').textContent = 'TR ' + String(idx + 1).padStart(2, '0');
-  $('bPlay').style.background = st && st.playing ? 'var(--blue)' : '';
+  $('bPlay').classList.toggle('lit', !!(st && st.playing));
+  $('bPause').classList.toggle('lit', !!(st && !st.playing));
+  $('ledPwr').classList.toggle('on', !!st);
+  $('ledUsb').classList.toggle('on', !!(st && st.playing));
+  document.querySelectorAll('.led.pwr').forEach((l) => l.classList.toggle('on', !!(st && st.playing)));
+  $('npTitle').textContent = st ? st.title : 'Nada sonando';
+  $('npState').textContent = !st ? 'DETENIDO' : st.playing ? 'REPRODUCIENDO' : 'EN PAUSA';
+  $('npDisc').classList.toggle('spin', !!(st && st.playing));
+  const tr = $('track');
+  tr.classList.remove('marquee');
+  requestAnimationFrame(() => tr.classList.toggle('marquee', tr.scrollWidth > tr.parentElement.clientWidth));
 }
 
 function renderSongs() {
@@ -273,6 +287,13 @@ $('seek').addEventListener('change', () => {
 
 /* ============================ Bucle de pantalla ============================ */
 const cv = $('spectrum'), cx = cv.getContext('2d');
+const BARS = 34, SEG_H = 5, peaks = new Array(BARS).fill(0);
+const bassMeter = $('bassMeter');
+for (let i = 0; i < 12; i++) bassMeter.appendChild(document.createElement('i'));
+const npBars = [...$('npBars').children];
+const fbuf = new Uint8Array(256);
+let ownBass = 0;
+
 function frame() {
   const s = sources[currentNet];
   if (uiOpen) {
@@ -282,20 +303,54 @@ function frame() {
     } else $('time').textContent = '00:00 / 00:00';
 
     cx.clearRect(0, 0, cv.width, cv.height);
-    if (s && s.nodes && s.playing) {
-      const data = new Uint8Array(s.nodes.analyser.frequencyBinCount);
-      s.nodes.analyser.getByteFrequencyData(data);
-      const w = cv.width / data.length;
-      data.forEach((v, i) => {
-        const h = (v / 255) * cv.height;
-        cx.fillStyle = `hsl(${200 + i * 2},100%,60%)`;
-        cx.fillRect(i * w + 1, cv.height - h, w - 2, h);
-      });
+    const live = s && s.nodes && s.playing;
+    if (live) s.nodes.analyser.getByteFrequencyData(fbuf);
+    const bw = cv.width / BARS;
+    for (let i = 0; i < BARS; i++) {
+      // escala logaritmica: pocas bines para graves, muchos para agudos
+      const lo = Math.floor(Math.pow(i / BARS, 2) * 200), hi = Math.max(lo + 1, Math.floor(Math.pow((i + 1) / BARS, 2) * 200));
+      let v = 0;
+      if (live) { for (let k = lo; k < hi; k++) v = Math.max(v, fbuf[k]); v /= 255; }
+      const segs = Math.round(v * (cv.height / SEG_H));
+      peaks[i] = Math.max(segs, peaks[i] - 0.25);
+      for (let g = 0; g < segs; g++) {
+        const t = g / (cv.height / SEG_H);
+        cx.fillStyle = t > 0.8 ? '#ff4d6d' : t > 0.55 ? '#ffd83a' : '#35d0ff';
+        cx.shadowColor = cx.fillStyle; cx.shadowBlur = 6;
+        cx.fillRect(i * bw + 1, cv.height - (g + 1) * SEG_H, bw - 2, SEG_H - 1.5);
+      }
+      if (peaks[i] > 1) { cx.fillStyle = '#e8f4ff'; cx.shadowBlur = 4; cx.fillRect(i * bw + 1, cv.height - (peaks[i] + 1) * SEG_H, bw - 2, 2); }
     }
+    cx.shadowBlur = 0;
+
+    // medidor de bajo, LEDs de clip y barras del "now playing"
+    [...bassMeter.children].forEach((l, i) => {
+      const on = ownBass * 12 > i;
+      l.className = on ? 'on' + (i > 9 ? ' r' : i > 6 ? ' y' : '') : '';
+    });
+    document.querySelectorAll('.led.clip').forEach((l) => l.classList.toggle('on', ownBass > 0.88));
+    npBars.forEach((b, i) => { b.style.height = (live ? 4 + Math.max(0, Math.min(1, ownBass + Math.sin(performance.now() / (120 + i * 40)) * 0.2)) * 18 : 4) + 'px'; });
+    $('unit').style.setProperty('--bass', Math.max(0, (ownBass - 0.35) / 0.65).toFixed(3));
   }
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
+
+/* ============ Analisis de graves -> vibracion de pantalla (cliente Lua) ============ */
+let lastBass = 0;
+setInterval(() => {
+  let max = 0, own = 0;
+  for (const id in sources) {
+    const src = sources[id];
+    if (!src.nodes || !src.playing || src.factor < 0.02) continue;
+    src.nodes.analyser.getByteFrequencyData(fbuf);
+    const b = (fbuf[0] * 0.35 + fbuf[1] * 0.4 + fbuf[2] * 0.25) / 255;
+    if (b > max) max = b;
+    if (String(id) === String(currentNet)) own = b;
+  }
+  ownBass = ownBass * 0.5 + own * 0.5;
+  if (Math.abs(max - lastBass) > 0.03 || (max === 0 && lastBass !== 0)) { lastBass = max; post('bass', { level: max }); }
+}, 60);
 
 /* ============================ Mensajes del juego ============================ */
 window.addEventListener('message', ({ data: d }) => {
@@ -325,6 +380,9 @@ window.addEventListener('message', ({ data: d }) => {
       break;
   }
 });
+
+function fit() { document.documentElement.style.setProperty('--fit', Math.min(1, innerHeight / 740, innerWidth / 1000)); }
+window.addEventListener('resize', fit); fit();
 
 // primer render para que el DOM exista aunque el panel este oculto
 buildAmps(); bindMaster(); updateVolPill(); renderSongs();

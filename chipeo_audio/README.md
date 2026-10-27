@@ -15,6 +15,7 @@ Sistema de audio de vehículo para FiveM (standalone, sin dependencias, OneSync 
 - 3 amplificadores con VOL, FADER, SUB VOL, FREQ y ecualizador de 7 bandas (50Hz–10K).
 - Knobs: arrastra verticalmente, rueda del ratón, doble clic para resetear.
 - Medidores de temperatura del motor y voltaje.
+- Vibración de pantalla: quien esté cerca (o dentro) siente temblar la cámara cuando los graves están fuertes; se ajusta en `Config.Shake`. Requiere que el enlace permita CORS (igual que el ecualizador).
 
 ## Notas
 - El enlace debe ser directo al archivo de audio. Si el servidor remoto no permite CORS, el audio suena pero sin ecualizador.

@@ -55,6 +55,39 @@ nui('addSong',  function(d) TriggerServerEvent('chipeo:addSong', d.title, d.url)
 nui('clone',    function(d) TriggerServerEvent('chipeo:cloneCurrent', currentNetId, d.title) end)
 RegisterNUICallback('removeSong', function(d, cb) TriggerServerEvent('chipeo:removeSong', d.id) cb('ok') end)
 
+---------------------------------------------------------------- vibracion por graves
+-- El NUI mide los graves ya atenuados por distancia y volumen y los envia aqui.
+local bassLevel = 0.0
+
+RegisterNUICallback('bass', function(d, cb)
+    bassLevel = tonumber(d.level) or 0.0
+    cb('ok')
+end)
+
+CreateThread(function()
+    local shaking = false
+    local cfg = Config.Shake
+    while true do
+        if cfg.enabled and (bassLevel > cfg.threshold or shaking) then
+            local amp = math.max(0.0, (bassLevel - cfg.threshold) / (1.0 - cfg.threshold)) * cfg.maxAmplitude
+            if amp > 0.02 then
+                if IsGameplayCamShaking() then
+                    SetGameplayCamShakeAmplitude(amp)
+                else
+                    ShakeGameplayCam(cfg.camShake, amp)
+                end
+                shaking = true
+            elseif shaking then
+                StopGameplayCamShaking(true)
+                shaking = false
+            end
+            Wait(0)
+        else
+            Wait(150)
+        end
+    end
+end)
+
 ---------------------------------------------------------------- servidor -> cliente
 RegisterNetEvent('chipeo:library', function(list)
     SendNUIMessage({ action = 'library', list = list })
