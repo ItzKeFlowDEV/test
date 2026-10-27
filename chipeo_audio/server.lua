@@ -85,7 +85,7 @@ local function defaultSettings()
     for i = 1, 3 do
         amps[i] = { vol = 0.5, fader = 0.5, sub = 0.5, freq = 0.4, eq = { 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5 } }
     end
-    return { master = 0.7, amps = amps }
+    return { master = 0.7, bassBoost = false, amps = amps }
 end
 
 ---------------------------------------------------------------- biblioteca
@@ -194,7 +194,7 @@ RegisterNetEvent('chipeo:settings', function(netId, settings)
     local st = states[netId]
     if not st or type(settings) ~= 'table' or not canControl(source, netId) then return end
     local function n(v, d) v = tonumber(v) or d return math.min(1.0, math.max(0.0, v)) end
-    local clean = { master = n(settings.master, 0.7), amps = {} }
+    local clean = { master = n(settings.master, 0.7), bassBoost = settings.bassBoost == true, amps = {} }
     for i = 1, 3 do
         local a = (settings.amps or {})[i] or {}
         clean.amps[i] = { vol = n(a.vol, 0.5), fader = n(a.fader, 0.5), sub = n(a.sub, 0.5), freq = n(a.freq, 0.4), eq = {} }

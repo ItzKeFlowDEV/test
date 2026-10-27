@@ -66,48 +66,65 @@
       </div>
       <div class="tright">
         <div class="swatches" title="Color de iluminación">
-          <i class="swatch" data-t="azul"></i><i class="swatch" data-t="rojo"></i><i class="swatch" data-t="verde"></i>
-          <i class="swatch" data-t="ambar"></i><i class="swatch" data-t="morado"></i><i class="swatch" data-t="rosa"></i>
+          <i class="swatch" data-t="rojo"></i><i class="swatch" data-t="naranja"></i><i class="swatch" data-t="blanco"></i>
+          <i class="swatch" data-t="azul"></i><i class="swatch" data-t="verde"></i><i class="swatch" data-t="morado"></i>
         </div>
         <span id="volPill" class="pill">70%</span><button class="x red" data-close>&times;</button>
       </div>
     </div>
 
-    <!-- radio estilo Pioneer DIN -->
-    <div class="head">
-      <div class="hu">
-        <div class="hu-left">
-          <button class="src" id="bIllum" title="Cambiar iluminación">SRC<small>ILLUMI</small></button>
-          <div class="mcwrap"><div id="knob-master" class="knob big"></div></div>
+    <!-- ===== Radio Pioneer MVH (1 DIN) ===== -->
+    <div class="hu">
+      <div class="hu-face">
+        <div class="lcol">
+          <button class="lbtn top" id="bSrc" title="SRC / OFF (detener)"><b>SRC</b><small>&harr;OFF</small></button>
+          <button class="lbtn mid" id="bMute" title="Silenciar"><svg viewBox="0 0 24 24"><path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1C10.6 21 3 13.4 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1z"/></svg></button>
+          <button class="lbtn bot" id="bIllum" title="BAND / DIMMER (color de luz)"><small>BAND /<br>&harr;DIMMER</small><svg viewBox="0 0 24 24"><path d="M10 9V5l-7 7 7 7v-4.1c5 0 8.5 1.6 11 5.1-1-5-4-10-11-11z"/></svg></button>
         </div>
-        <div class="hu-mid">
-          <div class="hu-top">
-            <span class="pio">Pioneer</span><span class="model">DEH-X9800BHS</span>
-            <span class="tags"><b>MIXTRAX</b><b>FLAC</b><b>BT</b></span>
-          </div>
-          <div class="screen">
-            <div class="srow"><span id="status" class="status">STOPPED</span><span class="icons">&#9835; USB</span></div>
-            <div class="trackwrap"><span id="track" class="track">—</span></div>
-            <canvas id="spectrum" width="340" height="44"></canvas>
-            <div class="screenfoot"><span id="trk">TR 00</span><span id="time">00:00 / 00:00</span></div>
-          </div>
-          <div class="presets">
-            <button id="bPrev" title="Anterior"><em>1</em><svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zM20 6v12L9.5 12z"/></svg></button>
-            <button id="bPlay" title="Reproducir"><em>2</em><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></button>
-            <button id="bPause" title="Pausa"><em>3</em><svg viewBox="0 0 24 24"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg></button>
-            <button id="bStop" title="Stop"><em>4</em><svg viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg></button>
-            <button id="bNext" title="Siguiente"><em>5</em><svg viewBox="0 0 24 24"><path d="M16 6h2v12h-2zM4 6v12l10.5-6z"/></svg></button>
-          </div>
+
+        <div class="vwrap"><div id="knob-master" class="vk"></div></div>
+        <button class="bassbtn" id="bBass" title="BASS BOOST"><span>BASS</span></button>
+
+        <div class="htop">
+          <span class="mic"><i></i>MIC</span>
+          <button class="disp" id="bDisp" title="DISP"><i></i></button><span class="displbl">DISP/<br>&harr;DISP OFF</span>
+          <span class="listlbl">&harr;LIST</span>
+          <span class="pio">Pioneer</span>
+          <svg class="bt" viewBox="0 0 24 24"><path d="M17.7 7.7 12 2h-1v7.6L6.4 5 5 6.4 10.6 12 5 17.6 6.4 19l4.6-4.6V22h1l5.7-5.7-4.3-4.3 4.3-4.3zM13 5.8l1.9 1.9L13 9.6V5.8zm1.9 10.5L13 18.2v-3.8l1.9 1.9z"/></svg>
         </div>
-        <div class="hu-right">
-          <div class="vu"><div id="bassMeter"></div><small>BASS</small></div>
+
+        <div class="lcd14" id="lcd">
+          <div class="segs"><span class="ghost" id="lcdGhost"></span><span class="txt" id="lcdText"></span></div>
+          <div class="licons"><i id="icRep">&#8644;</i><i id="icShuf">&#10536;</i><i class="on">&#9743;</i></div>
+          <input id="seek" type="range" min="0" max="1000" value="0">
+        </div>
+
+        <div class="usb"><i></i></div>
+        <div class="model">MVH-S235BT</div>
+
+        <div class="brow">
+          <div class="grp trackg"><span class="gl">TRACK</span>
+            <div class="trackbtn"><button id="bPrev" title="Anterior"><svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zM20 6v12L9.5 12z"/></svg></button><button id="bNext" title="Siguiente"><svg viewBox="0 0 24 24"><path d="M16 6h2v12h-2zM4 6v12l10.5-6z"/></svg></button></div>
+          </div>
+          <div class="grp"><span class="gl"><i>&#8963;</i><i>&#8964;</i></span><div class="nums"><button id="bVolUp" title="Volumen +">1</button><button id="bVolDn" title="Volumen -">2</button></div></div>
+          <div class="grp"><span class="gl r">&#9654;/&#10074;&#10074;</span><div class="nums"><button id="bPlay" title="Reproducir">3</button><button id="bPause" title="Pausa">4</button></div></div>
+          <div class="grp"><span class="gl"><i>&#10536;</i><i>&#8644;</i></span><div class="nums"><button id="bShuf" title="Aleatorio">5</button><button id="bRep" title="Repetir">6</button></div></div>
         </div>
       </div>
-      <input id="seek" type="range" min="0" max="1000" value="0">
     </div>
 
-    <div id="ytNote">MODO YOUTUBE · ecualizador y amplificadores no disponibles (solo volumen general)</div>
-    <div id="amps"></div>
+    <div id="ytNote">MODO YOUTUBE · ecualizadores no disponibles (solo volumen)</div>
+
+    <!-- ===== Ecualizadores PRV EQ7-15 apilados ===== -->
+    <div class="eqstack">
+      <div class="eqlid">
+        <div class="ports"><i></i><i></i><i></i><i></i></div>
+        <div class="lidlogo">FLOWDEV</div>
+        <div class="lidtxt"><b>7 Band Graphic Equalizer</b><span>EQ7-15</span></div>
+        <div class="lidsub">15 VOLT OUTPUT LINE DRIVER</div>
+      </div>
+      <div id="amps"></div>
+    </div>
 
     <div class="foot">CHIPEO <span>SYSTEM</span> <small>· VOCETEO EDITION BY FLOWDEV ·</small></div>
   </section>

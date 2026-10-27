@@ -12,8 +12,13 @@ Sistema de audio de vehículo para FiveM (standalone, sin dependencias, OneSync 
 - Reproducción rápida por enlace directo `.mp3`, `.wav`, `.ogg` o por **enlace de YouTube** (watch, youtu.be, shorts). Con YouTube suena y se sincroniza, pero el ecualizador, los amplificadores, el medidor de bajo y la vibración de pantalla no están disponibles (YouTube no permite procesar su audio); solo funciona el volumen general. Algunos videos no permiten reproducirse fuera de YouTube y mostrarán un aviso.
 - **Clonar USB**: guarda en tu biblioteca la canción que suena en ese momento en el vehículo.
 - Sonido realista alrededor del vehículo: el volumen baja con la distancia, se escucha por el lado (izq/der) donde está el carro y desde fuera suena apagado (retumba el bajo). Con puertas, ventanas o maletero abiertos se escucha más claro. Ajustes: `Config.MaxDistance`, `Config.OutsideMuffle`, `Config.ClosedMuffle`.
-- Iluminación de la radio en 6 colores (botón SRC o los puntos de color).
-- Ecualizadores con deslizadores LED estilo voceteo y cajón de 2 subwoofers que se mueven con el bajo.
+- Radio estilo Pioneer MVH con pantalla de 14 segmentos. Controles:
+  - Perilla: volumen · SRC: apagar/detener · Teléfono: silenciar · BAND/DIMMER: cambiar color de luz
+  - BASS: bass boost (+9 dB en graves) · DISP: título / tiempo / pantalla apagada
+  - TRACK ⏮ ⏭: canción anterior/siguiente · 1/2: volumen +/- · 3: play · 4: pausa · 5: aleatorio · 6: repetir
+- Iluminación en 6 colores: rojo, naranja, blanco, azul, verde, morado (radio, ecualizadores y botones).
+- 3 ecualizadores estilo PRV EQ7-15 apilados (FRONT, MIDS, SUBS): Sub level, Volume, FADER y 7 bandas (50Hz–16KHz) con perillas cromadas y anillo LED.
+- Cajón con 2 subwoofers que se mueven con el bajo.
 - `/chipeo_debug` imprime un diagnóstico en la consola F8 si algo no suena.
 - 3 amplificadores con VOL, FADER, SUB VOL, FREQ y ecualizador de 7 bandas (50Hz–10K).
 - Knobs: arrastra verticalmente, rueda del ratón, doble clic para resetear.
