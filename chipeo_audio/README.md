@@ -11,7 +11,10 @@ Sistema de audio de vehículo para FiveM (standalone, sin dependencias, OneSync 
 - Biblioteca musical personal (por licencia), guardada en `data/library.json`.
 - Reproducción rápida por enlace directo `.mp3`, `.wav`, `.ogg` o por **enlace de YouTube** (watch, youtu.be, shorts). Con YouTube suena y se sincroniza, pero el ecualizador, los amplificadores, el medidor de bajo y la vibración de pantalla no están disponibles (YouTube no permite procesar su audio); solo funciona el volumen general. Algunos videos no permiten reproducirse fuera de YouTube y mostrarán un aviso.
 - **Clonar USB**: guarda en tu biblioteca la canción que suena en ese momento en el vehículo.
-- Sincronizado para todos los jugadores; el volumen baja con la distancia al vehículo.
+- Sonido realista alrededor del vehículo: el volumen baja con la distancia, se escucha por el lado (izq/der) donde está el carro y desde fuera suena apagado (retumba el bajo). Con puertas, ventanas o maletero abiertos se escucha más claro. Ajustes: `Config.MaxDistance`, `Config.OutsideMuffle`, `Config.ClosedMuffle`.
+- Iluminación de la radio en 6 colores (botón SRC o los puntos de color).
+- Ecualizadores con deslizadores LED estilo voceteo y cajón de 2 subwoofers que se mueven con el bajo.
+- `/chipeo_debug` imprime un diagnóstico en la consola F8 si algo no suena.
 - 3 amplificadores con VOL, FADER, SUB VOL, FREQ y ecualizador de 7 bandas (50Hz–10K).
 - Knobs: arrastra verticalmente, rueda del ratón, doble clic para resetear.
 - Medidores de temperatura del motor y voltaje.

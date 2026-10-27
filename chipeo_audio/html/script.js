@@ -29,6 +29,7 @@ let activeDrag = null;
 window.addEventListener('mousemove', (e) => {
   if (!activeDrag) return;
   const k = activeDrag;
+  if (k.abs) return k.abs(e.clientY);
   k.set(clamp(k.startV + (k.startY - e.clientY) / 150)); k.draw(); k.onChange();
 });
 window.addEventListener('mouseup', () => { activeDrag = null; });
@@ -49,29 +50,68 @@ function makeKnob(el, get, set, onChange) {
 }
 
 const knobs = [];
+const MODELS = ['TEQ 7.4 · FRONT', 'TEQ 7.4 · MIDS', 'TEQ 7.4 · SUBS'];
+
+// Deslizador vertical con LEDs (ecualizador grafico de carro)
+function makeSlider(el, get, set, onChange) {
+  el.innerHTML = '<div class="trk">' + '<i></i>'.repeat(10) + '<b class="scap"></b></div>';
+  const trk = el.firstChild, leds = [...trk.querySelectorAll('i')], cap = trk.querySelector('.scap');
+  const draw = () => {
+    const v = get();
+    cap.style.bottom = `calc(${v} * (100% - 12px))`;
+    const lit = Math.round(v * 10);
+    leds.forEach((l, i) => { l.className = i < lit ? (i >= 8 ? 'on hot' : i >= 6 ? 'on warm' : 'on') : ''; });
+  };
+  draw();
+  const fromY = (y) => { const r = trk.getBoundingClientRect(); return clamp(1 - (y - r.top - 6) / (r.height - 12)); };
+  el.addEventListener('mousedown', (e) => {
+    activeDrag = { abs: (y) => { set(fromY(y)); draw(); onChange(); } };
+    activeDrag.abs(e.clientY);
+    e.preventDefault();
+  });
+  el.addEventListener('wheel', (e) => { set(clamp(get() - Math.sign(e.deltaY) * 0.04)); draw(); onChange(); });
+  el.addEventListener('dblclick', () => { set(0.5); draw(); onChange(); });
+}
+
 function buildAmps() {
   const host = $('amps');
   host.innerHTML = '';
   settings.amps.forEach((amp, i) => {
     const wrap = document.createElement('div');
     wrap.className = 'amp';
-    wrap.innerHTML = `<div class="amphead"><b>TARAMPS</b><span class="meta"><i class="led pwr"></i><i class="led clip"></i>TEQ7.4</span></div><div class="knobs"></div>
-      <div class="eqtag">7 BAND GRAPHIC EQUALIZER</div>`;
-    const row = wrap.querySelector('.knobs');
-    const cell = (label, getter, setter, cls = '') => {
+    wrap.innerHTML = `
+      <div class="fins"></div>
+      <div class="amphead">
+        <b>TARAMPS</b><em>${MODELS[i]}</em>
+        <span class="meta"><span><i class="led pwr"></i>PWR</span><span><i class="led clip"></i>CLIP</span></span>
+      </div>
+      <div class="ampbody">
+        <div class="kgroup main"></div>
+        <div class="kgroup subs"></div>
+        <div class="eqs"><div class="scale"><span>+12</span><span>0</span><span>-12</span></div></div>
+      </div>
+      <div class="eqtag"><span>CH ${i + 1}</span>7 BAND GRAPHIC EQUALIZER</div>`;
+    const cell = (host, label, getter, setter, cls = '') => {
       const c = document.createElement('div');
       c.className = 'kcell ' + cls;
       c.innerHTML = `<div class="knob"></div><span>${label}</span>`;
-      row.appendChild(c);
+      host.appendChild(c);
       makeKnob(c.firstChild, getter, setter, onKnob);
       knobs.push(c.firstChild);
     };
-    cell('VOL', () => amp.vol, (v) => (amp.vol = v));
-    cell('FADER', () => amp.fader, (v) => (amp.fader = v));
-    cell('SUB VOL', () => amp.sub, (v) => (amp.sub = v), 'sub gap');
-    cell('FREQ', () => amp.freq, (v) => (amp.freq = v), 'sub');
-    EQ_LABELS.forEach((l, b) =>
-      cell(l, () => amp.eq[b], (v) => (amp.eq[b] = v), b === 0 ? 'gap' : ''));
+    const main = wrap.querySelector('.main'), subs = wrap.querySelector('.subs'), eqs = wrap.querySelector('.eqs');
+    cell(main, 'VOL', () => amp.vol, (v) => (amp.vol = v));
+    cell(main, 'FADER', () => amp.fader, (v) => (amp.fader = v));
+    cell(subs, 'SUB VOL', () => amp.sub, (v) => (amp.sub = v), 'sub');
+    cell(subs, 'FREQ', () => amp.freq, (v) => (amp.freq = v), 'sub');
+    EQ_LABELS.forEach((l, b) => {
+      const col = document.createElement('div');
+      col.className = 'slcol';
+      col.innerHTML = `<div class="sl"></div><span>${l}</span>`;
+      eqs.appendChild(col);
+      const c = col.firstChild;
+      makeSlider(c, () => amp.eq[b], (v) => (amp.eq[b] = v), onKnob);
+    });
     host.appendChild(wrap);
   });
 }
@@ -135,9 +175,11 @@ function buildElement(s, fx) {
       node = n; stages.push({ trim, vol, sub, eq });
     }
     const comp = c.createDynamicsCompressor(), master = c.createGain(), analyser = c.createAnalyser();
+    const muffle = c.createBiquadFilter(); muffle.type = 'lowpass'; muffle.frequency.value = 20000; muffle.Q.value = 0.7;
+    const pan = c.createStereoPanner();
     analyser.fftSize = 512; analyser.smoothingTimeConstant = 0.6;
-    node.connect(comp); comp.connect(master); master.connect(analyser); analyser.connect(c.destination);
-    s.nodes = { stages, master, analyser };
+    node.connect(comp); comp.connect(muffle); muffle.connect(master); master.connect(pan); pan.connect(analyser); analyser.connect(c.destination);
+    s.nodes = { stages, master, analyser, muffle, pan };
   }
 }
 
@@ -166,6 +208,9 @@ function applySource(s) {
   if (!s.nodes) { s.el.volume = clamp(level); return; }
   const t = AC.currentTime;
   s.nodes.master.gain.setTargetAtTime(level * 1.2, t, 0.05);
+  s.nodes.pan.pan.setTargetAtTime(clamp(s.pan || 0, -1, 1), t, 0.1);
+  // 0 = limpio (20 kHz), 1 = muy apagado (~250 Hz): fuera del carro solo retumba el bajo
+  s.nodes.muffle.frequency.setTargetAtTime(20000 * Math.pow(250 / 20000, clamp(s.muffle || 0)), t, 0.1);
   s.nodes.stages.forEach((g, i) => {
     const a = st.amps[i];
     g.vol.gain.setTargetAtTime(a.vol * 2, t, 0.05);
@@ -212,7 +257,7 @@ function removeSource(netId) {
 }
 
 let isDragging = false;
-window.addEventListener('mousedown', (e) => { isDragging = !!e.target.closest('.knob'); });
+window.addEventListener('mousedown', (e) => { isDragging = !!e.target.closest('.knob, .sl'); });
 window.addEventListener('mouseup', () => { isDragging = false; });
 
 /* ============================ YouTube (sin ecualizador) ============================ */
@@ -328,7 +373,7 @@ function refreshDisplay() {
   document.querySelectorAll('.led.pwr').forEach((l) => l.classList.toggle('on', !!(st && st.playing)));
   $('npTitle').textContent = st ? ((ys && ys.ytTitle) || st.title) : 'Nada sonando';
   $('npState').textContent = !st ? 'DETENIDO' : st.playing ? 'REPRODUCIENDO' : 'EN PAUSA';
-  $('npDisc').classList.toggle('spin', !!(st && st.playing));
+  document.body.classList.toggle('playing', !!(st && st.playing));
   const tr = $('track');
   tr.classList.remove('marquee');
   requestAnimationFrame(() => tr.classList.toggle('marquee', tr.scrollWidth > tr.parentElement.clientWidth));
@@ -441,7 +486,7 @@ function frame() {
       peaks[i] = Math.max(segs, peaks[i] - 0.25);
       for (let g = 0; g < segs; g++) {
         const t = g / (cv.height / SEG_H);
-        cx.fillStyle = t > 0.8 ? '#ff4d6d' : t > 0.55 ? '#ffd83a' : '#35d0ff';
+        cx.fillStyle = t > 0.8 ? '#ff4d6d' : t > 0.55 ? '#ffd83a' : accent;
         cx.shadowColor = cx.fillStyle; cx.shadowBlur = 6;
         cx.fillRect(i * bw + 1, cv.height - (g + 1) * SEG_H, bw - 2, SEG_H - 1.5);
       }
@@ -456,7 +501,7 @@ function frame() {
     });
     document.querySelectorAll('.led.clip').forEach((l) => l.classList.toggle('on', ownBass > 0.88));
     npBars.forEach((b, i) => { b.style.height = (live ? 4 + Math.max(0, Math.min(1, ownBass + Math.sin(performance.now() / (120 + i * 40)) * 0.2)) * 18 : 4) + 'px'; });
-    $('unit').style.setProperty('--bass', Math.max(0, (ownBass - 0.35) / 0.65).toFixed(3));
+    document.documentElement.style.setProperty('--bass', Math.max(0, (ownBass - 0.35) / 0.65).toFixed(3));
   }
   requestAnimationFrame(frame);
 }
@@ -499,17 +544,20 @@ window.addEventListener('message', ({ data: d }) => {
         ctx: AC ? AC.state : 'sin-contexto', currentNet,
         sources: Object.values(sources).map((s) => ({ net: s.netId, kind: s.kind, fx: s.fx, factor: s.factor, playing: s.playing,
           paused: s.el.paused, t: s.el.currentTime, readyState: s.el.readyState, elVol: s.el.volume, muted: s.el.muted, url: s.url,
-          master: s.nodes ? s.nodes.master.gain.value : null }))
+          master: s.nodes ? s.nodes.master.gain.value : null, pan: s.nodes ? s.nodes.pan.pan.value : null, lp: s.nodes ? Math.round(s.nodes.muffle.frequency.value) : null }))
       });
       break;
     case 'remove':
       removeSource(d.netId); break;
     case 'tick':
       if (AC && AC.state === 'suspended') AC.resume();
-      if (d.inside != null && d.factors) d.factors[d.inside] = 1;   // dentro del vehiculo siempre volumen completo
-      Object.entries(d.factors || {}).forEach(([id, f]) => {
-        const s = sources[id]; if (!s) return;
-        if (Math.abs(s.factor - f) > 0.01) { s.factor = f; applySource(s); }
+      if (d.inside != null && d.factors) d.factors[d.inside] = { f: 1, p: 0, m: 0 };   // dentro del vehiculo: sonido completo
+      Object.entries(d.factors || {}).forEach(([id, v]) => {
+        const s = sources[id]; if (!s || !v) return;
+        if (typeof v === 'number') v = { f: v, p: 0, m: 0 };
+        if (Math.abs(s.factor - v.f) > 0.01 || Math.abs((s.pan || 0) - v.p) > 0.03 || Math.abs((s.muffle || 0) - v.m) > 0.02) {
+          s.factor = v.f; s.pan = v.p; s.muffle = v.m; applySource(s);
+        }
       });
       $('temp').textContent = Math.round(d.temp) + '°C';
       $('volt').textContent = (d.volt + (sources[currentNet] && sources[currentNet].playing ? settings.master * -0.4 : 0)).toFixed(1);
@@ -517,7 +565,25 @@ window.addEventListener('message', ({ data: d }) => {
   }
 });
 
-function fit() { document.documentElement.style.setProperty('--fit', Math.min(1, innerHeight / 740, innerWidth / 1000)); }
+/* ============ Iluminacion (como las radios Pioneer de colores) ============ */
+const THEMES = { azul: ['#35b5ff', '#1f6bff'], rojo: ['#ff4060', '#d0102e'], verde: ['#3dff8f', '#0fb25a'],
+                 ambar: ['#ffb43a', '#e07800'], morado: ['#c27bff', '#7b2cff'], rosa: ['#ff5ad1', '#d4149e'] };
+let accent = THEMES.azul[0];
+function setTheme(name) {
+  const t = THEMES[name] || THEMES.azul;
+  accent = t[0];
+  document.documentElement.style.setProperty('--cyan', t[0]);
+  document.documentElement.style.setProperty('--blue', t[1]);
+  document.querySelectorAll('.swatch').forEach((s) => s.classList.toggle('sel', s.dataset.t === name));
+  try { localStorage.setItem('chipeo_theme', name); } catch (e) {}
+}
+document.querySelectorAll('.swatch').forEach((s) => { s.style.background = THEMES[s.dataset.t][0]; s.onclick = () => setTheme(s.dataset.t); });
+let savedTheme = 'azul';
+try { savedTheme = localStorage.getItem('chipeo_theme') || 'azul'; } catch (e) {}
+setTheme(savedTheme);
+$('bIllum').onclick = () => { const k = Object.keys(THEMES); setTheme(k[(k.indexOf(savedTheme = k[(k.indexOf(savedTheme) + 1) % k.length]))]); };
+
+function fit() { document.documentElement.style.setProperty('--fit', Math.min(1, innerHeight / 760, innerWidth / 1030)); }
 window.addEventListener('resize', fit); fit();
 
 // primer render para que el DOM exista aunque el panel este oculto

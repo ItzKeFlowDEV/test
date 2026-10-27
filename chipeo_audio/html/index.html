@@ -8,7 +8,7 @@
 <body>
 <div id="app" class="hidden">
 
-  <!-- ===== BIBLIOTECA ===== -->
+  <!-- ===== BIBLIOTECA + CAJON DE BAJOS ===== -->
   <section id="library" class="panel glass">
     <header>
       <div class="title"><i class="note"></i><span>MI BIBLIOTECA MUSICAL</span></div>
@@ -40,14 +40,21 @@
       <div id="songs"></div>
     </div>
 
+    <!-- cajon con 2 subwoofers que se mueven con el bajo -->
+    <div class="subbox">
+      <div class="carpet"></div>
+      <div class="woofer"><div class="surround"><div class="cone"><div class="dust"></div></div></div></div>
+      <div class="woofer"><div class="surround"><div class="cone"><div class="dust"></div></div></div></div>
+      <div class="badge">CHIPEO <span>12"</span></div>
+    </div>
+
     <div class="nowplaying">
-      <div id="npDisc" class="vinyl"></div>
       <div class="npinfo"><b id="npTitle">Nada sonando</b><small id="npState">DETENIDO</small></div>
       <div class="bars" id="npBars"><i></i><i></i><i></i><i></i><i></i></div>
     </div>
   </section>
 
-  <!-- ===== EQUIPO ===== -->
+  <!-- ===== RACK DE AUDIO ===== -->
   <section id="unit" class="panel faceplate">
     <i class="screw tl"></i><i class="screw tr"></i><i class="screw bl"></i><i class="screw br"></i>
 
@@ -57,35 +64,52 @@
         <div class="lcd green"><small>TEMP</small><b id="temp">48°C</b></div>
         <div class="lcd red"><small>VOLT</small><b id="volt">13.3</b></div>
       </div>
-      <div class="tright"><span id="volPill" class="pill">70%</span><button class="x red" data-close>&times;</button></div>
+      <div class="tright">
+        <div class="swatches" title="Color de iluminación">
+          <i class="swatch" data-t="azul"></i><i class="swatch" data-t="rojo"></i><i class="swatch" data-t="verde"></i>
+          <i class="swatch" data-t="ambar"></i><i class="swatch" data-t="morado"></i><i class="swatch" data-t="rosa"></i>
+        </div>
+        <span id="volPill" class="pill">70%</span><button class="x red" data-close>&times;</button>
+      </div>
     </div>
 
+    <!-- radio estilo Pioneer DIN -->
     <div class="head">
-      <div class="brand"><span class="pio">Pioneer</span><span class="model">MVH-X480BT</span><span class="flac">FLAC</span></div>
-      <div class="headbody">
-        <div class="mcwrap"><div id="knob-master" class="knob big"></div><small>M.C.</small></div>
-        <div class="screen">
-          <div class="srow"><span id="status" class="status">STOPPED</span><span class="icons">&#9835; USB</span></div>
-          <div class="trackwrap"><span id="track" class="track">—</span></div>
-          <canvas id="spectrum" width="340" height="56"></canvas>
-          <div class="screenfoot"><span id="trk">TR 00</span><span id="time">00:00 / 00:00</span></div>
+      <div class="hu">
+        <div class="hu-left">
+          <button class="src" id="bIllum" title="Cambiar iluminación">SRC<small>ILLUMI</small></button>
+          <div class="mcwrap"><div id="knob-master" class="knob big"></div></div>
         </div>
-        <div class="vu"><div id="bassMeter"></div><small>BASS</small></div>
+        <div class="hu-mid">
+          <div class="hu-top">
+            <span class="pio">Pioneer</span><span class="model">DEH-X9800BHS</span>
+            <span class="tags"><b>MIXTRAX</b><b>FLAC</b><b>BT</b></span>
+          </div>
+          <div class="screen">
+            <div class="srow"><span id="status" class="status">STOPPED</span><span class="icons">&#9835; USB</span></div>
+            <div class="trackwrap"><span id="track" class="track">—</span></div>
+            <canvas id="spectrum" width="340" height="44"></canvas>
+            <div class="screenfoot"><span id="trk">TR 00</span><span id="time">00:00 / 00:00</span></div>
+          </div>
+          <div class="presets">
+            <button id="bPrev" title="Anterior"><em>1</em><svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zM20 6v12L9.5 12z"/></svg></button>
+            <button id="bPlay" title="Reproducir"><em>2</em><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></button>
+            <button id="bPause" title="Pausa"><em>3</em><svg viewBox="0 0 24 24"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg></button>
+            <button id="bStop" title="Stop"><em>4</em><svg viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg></button>
+            <button id="bNext" title="Siguiente"><em>5</em><svg viewBox="0 0 24 24"><path d="M16 6h2v12h-2zM4 6v12l10.5-6z"/></svg></button>
+          </div>
+        </div>
+        <div class="hu-right">
+          <div class="vu"><div id="bassMeter"></div><small>BASS</small></div>
+        </div>
       </div>
       <input id="seek" type="range" min="0" max="1000" value="0">
-      <div class="transport">
-        <button id="bPrev" title="Anterior"><svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zM20 6v12L9.5 12z"/></svg></button>
-        <button id="bPlay" title="Reproducir"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></button>
-        <button id="bPause" title="Pausa"><svg viewBox="0 0 24 24"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg></button>
-        <button id="bStop" title="Stop"><svg viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg></button>
-        <button id="bNext" title="Siguiente"><svg viewBox="0 0 24 24"><path d="M16 6h2v12h-2zM4 6v12l10.5-6z"/></svg></button>
-      </div>
     </div>
 
     <div id="ytNote">MODO YOUTUBE · ecualizador y amplificadores no disponibles (solo volumen general)</div>
     <div id="amps"></div>
 
-    <div class="foot">CHIPEO <span>SYSTEM</span></div>
+    <div class="foot">CHIPEO <span>SYSTEM</span> <small>· VOCETEO EDITION ·</small></div>
   </section>
 </div>
 <div id="ytHost"></div>

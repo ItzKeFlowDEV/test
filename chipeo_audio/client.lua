@@ -135,20 +135,46 @@ CreateThread(function()
             local pos = GetEntityCoords(ped)
             local factors = {}
             local inside = nil
+            local myVehNet = myVeh ~= 0 and NetworkGetEntityIsNetworked(myVeh) and NetworkGetNetworkIdFromEntity(myVeh) or nil
+            local camPos = GetGameplayCamCoord()
+            local camRot = math.rad(GetGameplayCamRot(2).z)
+            local rx, ry = math.cos(camRot), math.sin(camRot)   -- vector "derecha" de la camara
 
             for netId in pairs(states) do
                 local veh = NetworkDoesNetworkIdExist(netId) and NetworkGetEntityFromNetworkId(netId) or 0
+                local key = tostring(netId)
                 if veh ~= 0 and DoesEntityExist(veh) then
-                    if veh == myVeh then
+                    if veh == myVeh or netId == myVehNet then
                         inside = netId
-                        factors[tostring(netId)] = 1.0
+                        factors[key] = { f = 1.0, p = 0.0, m = 0.0 }
                     else
-                        local d = #(pos - GetEntityCoords(veh))
-                        local f = math.max(0.0, 1.0 - d / Config.MaxDistance)
-                        factors[tostring(netId)] = f * f * Config.OutsideMuffle
+                        local vpos = GetEntityCoords(veh)
+                        local d = #(pos - vpos)
+                        local n = math.max(0.0, 1.0 - d / Config.MaxDistance)
+                        -- caida de volumen mas natural (cerca fuerte, lejos se pierde suave)
+                        local f = (n ^ 1.6) * Config.OutsideMuffle
+
+                        -- panorama: izquierda/derecha segun hacia donde mira la camara
+                        local dx, dy = vpos.x - camPos.x, vpos.y - camPos.y
+                        local len = math.sqrt(dx * dx + dy * dy)
+                        local p = len > 0.5 and ((dx * rx + dy * ry) / len) * 0.75 or 0.0
+
+                        -- apagado (paso bajo): puertas/maletero/ventanas abiertas dejan salir los agudos
+                        local open = 0.0
+                        for door = 0, 5 do
+                            if GetVehicleDoorAngleRatio(veh, door) > 0.1 then open = math.max(open, door >= 4 and 1.0 or 0.6) end
+                        end
+                        for w = 0, 3 do
+                            if not IsVehicleWindowIntact(veh, w) then open = math.max(open, 0.45) end
+                        end
+                        local m = Config.ClosedMuffle * (1.0 - open) + (1.0 - n) * 0.35
+                        if myVeh ~= 0 then m = m + 0.2 end -- tu tambien estas dentro de otro carro
+                        if open >= 1.0 then f = math.min(1.0, f * 1.35) end -- maletero abierto: suena mas
+
+                        factors[key] = { f = f, p = p, m = math.min(1.0, m) }
                     end
                 else
-                    factors[tostring(netId)] = 0.0
+                    factors[key] = { f = 0.0, p = 0.0, m = 1.0 }
                 end
             end
 
