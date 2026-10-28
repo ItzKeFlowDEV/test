@@ -4,6 +4,8 @@ local byPlayer = {}       -- [src] = id del reporte activo
 local cooldown = {}       -- [src] = os.time() del ultimo reporte
 local lastPos = {}        -- [target] = coords antes de "traer" (para devolver)
 local nextId = 1
+local shots = {}          -- [shotId] = { data = 'data:image/jpeg;base64,...', report = id }
+local allowScale = {}     -- [src] = os.time() hasta cuando puede usar el menu de escala
 
 ---------------------------------------------------------------- permisos
 local ESX, QBCore
@@ -76,8 +78,8 @@ local function queuePosition(report)
     return pos
 end
 
-local function addMessage(report, from, name, text)
-    report.messages[#report.messages + 1] = { from = from, name = name, text = text, t = now() }
+local function addMessage(report, from, name, text, image)
+    report.messages[#report.messages + 1] = { from = from, name = name, text = text, image = image, t = now() }
     report.updated = now()
 end
 
@@ -127,6 +129,7 @@ local function closeReport(report, byName, reason)
     sendPlayer(report)
     byPlayer[report.src] = nil
     reports[report.id] = nil
+    for id, shot in pairs(shots) do if shot.report == report.id then shots[id] = nil end end
     log(report)
     sendAdmins()
 end
@@ -287,10 +290,10 @@ RegisterNetEvent('flowreports:action', function(id, action, value)
         TriggerClientEvent('flowreports:doAction', target, action, adminName)
         notify(src, ({ revive = 'Reviviste a ', heal = 'Curaste a ', skin = 'Abriste el menú de ropa a ', freeze = 'Congelar / descongelar: ' })[action] .. report.name, 'success')
     elseif action == 'scale' then
-        local s = tonumber(value) or 1.0
-        s = math.max(Config.ScaleMin, math.min(Config.ScaleMax, s))
-        Player(target).state:set('flowScale', s ~= 1.0 and s or nil, true)
-        notify(src, ('Escala de %s: %.2f'):format(report.name, s), 'success')
+        -- se le abre el menu de escala al jugador; el elige su tamaño (habilitado 10 min)
+        allowScale[target] = now() + 600
+        TriggerClientEvent('flowreports:doAction', target, 'scale', adminName)
+        notify(src, 'Le abriste el menú de escala a ' .. report.name, 'success')
     elseif action == 'kick' then
         local reason = clean(value, 120)
         if reason == '' then reason = 'Expulsado por un administrador' end
@@ -302,7 +305,63 @@ RegisterNetEvent('flowreports:action', function(id, action, value)
     end
     addMessage(report, 'system', 'Sistema', ('%s usó: %s'):format(adminName, ({
         ['goto'] = 'Ir al jugador', bring = 'Traer', ['return'] = 'Devolver', revive = 'Revivir', heal = 'Curar',
-        skin = 'Menú de ropa', freeze = 'Congelar', scale = ('Escala %.2f'):format(tonumber(value) or 1)
+        skin = 'Menú de ropa', freeze = 'Congelar', scale = 'Menú de escala'
     })[action]))
     sendAdmins()
+end)
+
+---------------------------------------------------------------- menu de escala del jugador
+RegisterNetEvent('flowreports:setScale', function(value)
+    local src = source
+    if not allowScale[src] or allowScale[src] < now() then
+        return notify(src, 'Necesitas que un administrador te abra el menú de escala', 'error')
+    end
+    local s = math.max(Config.ScaleMin, math.min(Config.ScaleMax, tonumber(value) or 1.0))
+    Player(src).state:set('flowScale', math.abs(s - 1.0) > 0.001 and s or nil, true)
+    notify(src, ('Tu tamaño ahora es %.2fx'):format(s), 'success')
+    local report = reports[byPlayer[src] or -1]
+    if report then
+        addMessage(report, 'system', 'Sistema', ('%s cambió su escala a %.2fx'):format(report.name, s))
+        sendAdmins()
+    end
+end)
+
+---------------------------------------------------------------- capturas de pantalla
+local shotCounter = 0
+local MAX_BYTES = Config.MaxScreenshotKB * 1024
+
+-- llega por TriggerLatentServerEvent (se envia por partes, no traba la red)
+RegisterNetEvent('flowreports:screenshot', function(data)
+    local src = source
+    local report = reports[byPlayer[src] or -1]
+    if not report then return end
+    if type(data) ~= 'string' or #data > MAX_BYTES or not data:match('^data:image/[%a]+;base64,') then
+        return notify(src, 'La captura no es válida o es muy grande', 'error')
+    end
+    local count = 0
+    for _, shot in pairs(shots) do if shot.report == report.id then count = count + 1 end end
+    if count >= Config.MaxScreenshots then
+        return notify(src, ('Máximo %d capturas por reporte'):format(Config.MaxScreenshots), 'error')
+    end
+    shotCounter = shotCounter + 1
+    local id = ('%d-%d'):format(report.id, shotCounter)
+    shots[id] = { data = data, report = report.id }
+    addMessage(report, 'player', report.name, '', id)
+    sendPlayer(report)
+    sendAdmins()
+    notify(src, 'Captura enviada', 'success')
+    if report.claimedBy then notify(report.claimedBy.src, ('Reporte #%d: %s envió una captura'):format(report.id, report.name), 'info') end
+end)
+
+RegisterNetEvent('flowreports:getImage', function(id)
+    local src = source
+    local shot = shots[id]
+    if not shot then return end
+    local report = reports[shot.report]
+    if not (isAdmin(src) or (report and report.src == src)) then return end
+    TriggerLatentClientEvent('flowreports:image', src, 400000, id, shot.data)
+end)
+
+AddEventHandler('playerDropped', function()
+    allowScale[source] = nil
 end)

@@ -37,7 +37,14 @@
     <span class="timer" id="prTimer">00:00</span>
   </div>
   <div class="chat" id="prChat"></div>
+  <div class="shotprev hidden" id="shotPrev">
+    <img id="shotImg" alt="">
+    <div class="shotinfo"><b>Captura lista</b><small>Se enviará en el chat del reporte</small></div>
+    <button class="ghostbtn tile" id="shotDiscard">Descartar</button>
+    <button class="primary" id="shotSend"><svg viewBox="0 0 24 24"><path d="M4 12l16-8-6 16-3-7z"/></svg>Enviar captura</button>
+  </div>
   <div class="composer">
+    <button class="ghost tile camb" id="prShot" title="Sacar captura de pantalla"><svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg></button>
     <div class="tile field"><input id="prInput" maxlength="300" placeholder="Escribe un mensaje al administrador..."></div>
     <button class="primary sq" id="prSend"><svg viewBox="0 0 24 24"><path d="M4 12l16-8-6 16-3-7z"/></svg></button>
   </div>
@@ -56,6 +63,19 @@
   </div>
   <div class="wbar"><i></i></div>
 </div>
+
+<!-- ===================== JUGADOR: MENU DE ESCALA (lo abre un admin) ===================== -->
+<section id="pScale" class="panel center small hidden">
+  <header class="phead">
+    <div class="hex"><svg viewBox="0 0 24 24"><path d="M4 20L20 4M14 4h6v6M10 20H4v-6"/></svg></div>
+    <div class="ptitle"><b>MENÚ DE ESCALA</b><small id="scaleBy">Un administrador te habilitó cambiar tu tamaño</small></div>
+    <button class="xbtn" data-close><svg viewBox="0 0 24 24"><path d="M7 7l10 10M17 7L7 17"/></svg></button>
+  </header>
+  <div class="scaleview"><span class="sped" id="scalePed"></span><span class="sref"></span><em id="scaleVal">1.00x</em></div>
+  <input type="range" id="scaleRange" min="0.5" max="1.5" step="0.05" value="1">
+  <div class="presets"><button data-s="0.6">Mini</button><button data-s="0.8">Bajo</button><button data-s="1">Normal</button><button data-s="1.2">Alto</button><button data-s="1.4">Gigante</button></div>
+  <div class="formfoot"><span class="hint2"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>Todos te verán con este tamaño</span><button class="primary" id="scaleApply"><svg viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></svg>Aplicar</button></div>
+</section>
 
 <!-- ===================== ADMIN ===================== -->
 <section id="admin" class="panel wide hidden">
@@ -106,17 +126,6 @@
     </div>
   </div>
 
-  <!-- ventana: escala -->
-  <div class="modal hidden" id="scaleModal">
-    <div class="mbox">
-      <div class="mhead"><b>Escala del jugador</b><small>Visual: todos lo verán más grande o más pequeño</small></div>
-      <div class="scaleview"><span class="sped" id="scalePed"></span><em id="scaleVal">1.00x</em></div>
-      <input type="range" id="scaleRange" min="0.5" max="1.5" step="0.05" value="1">
-      <div class="presets"><button data-s="0.6">Mini</button><button data-s="0.8">Bajo</button><button data-s="1">Normal</button><button data-s="1.2">Alto</button><button data-s="1.4">Gigante</button></div>
-      <div class="mfoot"><button class="ghostbtn tile" data-mclose>Cancelar</button><button class="primary" id="scaleApply">Aplicar</button></div>
-    </div>
-  </div>
-
   <!-- ventana: expulsar -->
   <div class="modal hidden" id="kickModal">
     <div class="mbox">
@@ -130,6 +139,7 @@
 <!-- contador de reportes para admins (fuera del panel) -->
 <div id="adminPill" class="hidden"><i></i><span id="adminPillText">0 reportes abiertos</span><small>/reportes</small></div>
 
+<div id="lightbox" class="hidden"><img id="lbImg" alt=""><small>Clic para cerrar</small></div>
 <div id="toasts"></div>
 <script src="script.js"></script>
 </body>

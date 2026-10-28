@@ -89,6 +89,12 @@ RegisterNetEvent('flowreports:doAction', function(action, adminName)
     elseif action == 'skin' then
         if view then close() end
         if not Config.OpenSkinMenu() then notify('No se encontró un menú de ropa en el servidor', 'error') end
+    elseif action == 'scale' then
+        if Config.OpenScaleMenu and Config.OpenScaleMenu() then return end
+        view = 'scale'
+        SetNuiFocus(true, true)
+        SendNUIMessage({ action = 'openScale', admin = adminName, min = Config.ScaleMin, max = Config.ScaleMax,
+            current = LocalPlayer.state.flowScale or 1.0 })
     elseif action == 'freeze' then
         frozen = not frozen
         FreezeEntityPosition(ped, frozen)
@@ -128,6 +134,47 @@ RegisterNUICallback('unclaim', function(d, cb) TriggerServerEvent('flowreports:u
 RegisterNUICallback('reply', function(d, cb) TriggerServerEvent('flowreports:reply', d.id, d.text) cb('ok') end)
 RegisterNUICallback('closeReport', function(d, cb) TriggerServerEvent('flowreports:close', d.id) cb('ok') end)
 RegisterNUICallback('action', function(d, cb) TriggerServerEvent('flowreports:action', d.id, d.action, d.value) cb('ok') end)
+
+RegisterNUICallback('applyScale', function(d, cb)
+    TriggerServerEvent('flowreports:setScale', tonumber(d.value) or 1.0)
+    close()
+    cb('ok')
+end)
+
+---------------------------------------------------------------- capturas (screenshot-basic)
+RegisterNUICallback('takeShot', function(_, cb)
+    cb('ok')
+    if GetResourceState('screenshot-basic') ~= 'started' then
+        SendNUIMessage({ action = 'shotTaken' })
+        return notify('Este servidor no tiene screenshot-basic instalado', 'error')
+    end
+    -- se esconde el menu para que la captura muestre el juego
+    SendNUIMessage({ action = 'hideForShot' })
+    Wait(120)
+    exports['screenshot-basic']:requestScreenshot({ encoding = 'jpg', quality = Config.ScreenshotQuality }, function(data)
+        SendNUIMessage({ action = 'shotTaken', data = data })
+    end)
+end)
+
+RegisterNUICallback('sendShot', function(d, cb)
+    cb('ok')
+    if type(d.data) == 'string' then TriggerLatentServerEvent('flowreports:screenshot', 250000, d.data) end
+end)
+
+local imageCache = {}
+RegisterNUICallback('getImage', function(d, cb)
+    cb('ok')
+    if imageCache[d.id] then
+        SendNUIMessage({ action = 'image', id = d.id, data = imageCache[d.id] })
+    else
+        TriggerServerEvent('flowreports:getImage', d.id)
+    end
+end)
+
+RegisterNetEvent('flowreports:image', function(id, data)
+    imageCache[id] = data
+    SendNUIMessage({ action = 'image', id = id, data = data })
+end)
 
 AddEventHandler('onResourceStop', function(res)
     if res ~= GetCurrentResourceName() then return end

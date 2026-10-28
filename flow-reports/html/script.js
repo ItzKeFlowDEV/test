@@ -61,10 +61,28 @@ function chatHtml(messages, mySide) {
   return messages.map((m, i) => {
     if (m.from === 'system') return `<div class="msg sys" style="animation-delay:${Math.min(i * 0.02, .3)}s"><div class="bubble">${esc(m.text)}</div></div>`;
     const mine = m.from === mySide;
+    const body = m.image
+      ? `<div class="bubble img" data-img="${esc(m.image)}">${images[m.image] ? `<img src="${images[m.image]}" alt="">` : '<div class="loading">Cargando captura...</div>'}</div>`
+      : `<div class="bubble">${esc(m.text)}</div>`;
     return `<div class="msg ${mine ? 'me' : 'them'} ${m.from}" style="animation-delay:${Math.min(i * 0.02, .3)}s">
-      <span class="who">${esc(m.name)}${m.from === 'admin' && !mine ? ' · Admin' : ''}</span><div class="bubble">${esc(m.text)}</div></div>`;
+      <span class="who">${esc(m.name)}${m.from === 'admin' && !mine ? ' · Admin' : ''}${m.image ? ' · 📷 Captura' : ''}</span>${body}</div>`;
   }).join('');
 }
+// capturas: se piden al servidor solo cuando se ven, y se guardan en memoria
+const images = {};
+const asked = new Set();
+function hydrateImages(root) {
+  root.querySelectorAll('[data-img]').forEach((b) => {
+    const id = b.dataset.img;
+    if (!images[id] && !asked.has(id)) { asked.add(id); post('getImage', { id }); }
+  });
+}
+document.addEventListener('click', (e) => {
+  const img = e.target.closest('.bubble.img img');
+  if (img) { $('lbImg').src = img.src; $('lightbox').classList.remove('hidden'); }
+});
+$('lightbox').onclick = () => $('lightbox').classList.add('hidden');
+
 function scrollEnd(el) { requestAnimationFrame(() => { el.scrollTop = el.scrollHeight; }); }
 
 function renderPlayerReport() {
@@ -80,6 +98,7 @@ function renderPlayerReport() {
   const chat = $('prChat');
   const before = chat.childElementCount;
   chat.innerHTML = chatHtml(report.messages, 'player');
+  hydrateImages(chat);
   if (chat.childElementCount !== before) scrollEnd(chat);
 }
 $('prSend').onclick = () => {
@@ -88,6 +107,15 @@ $('prSend').onclick = () => {
 };
 $('prInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('prSend').click(); });
 $('prCancel').onclick = () => post('cancel');
+let pendingShot = null;
+$('prShot').onclick = () => { $('prShot').classList.add('busy'); post('takeShot'); };
+$('shotDiscard').onclick = () => { pendingShot = null; $('shotPrev').classList.add('hidden'); };
+$('shotSend').onclick = () => {
+  if (!pendingShot) return;
+  post('sendShot', { data: pendingShot });
+  pendingShot = null; $('shotPrev').classList.add('hidden');
+  toast('Enviando captura...', 'info');
+};
 
 let lastAdminMsgs = 0;
 function renderWaitbar() {
@@ -170,6 +198,7 @@ function renderDetail(fresh) {
   const chat = $('aChat');
   const before = chat.childElementCount;
   chat.innerHTML = chatHtml(r.messages, 'admin');
+  hydrateImages(chat);
   if (fresh || chat.childElementCount !== before) scrollEnd(chat);
   if (fresh) $('aInput').value = '';
 }
@@ -193,13 +222,12 @@ document.querySelectorAll('#actions button').forEach((b) => (b.onclick = () => {
   const act = b.dataset.act;
   const r = reports.find((x) => x.id === selected);
   if (!r) return;
-  if (act === 'scale') return openModal('scaleModal');
   if (act === 'kick') { $('kickName').textContent = r.name; $('kickReason').value = ''; return openModal('kickModal'); }
   post('action', { id: selected, action: act });
 }));
 
 /* ventanas */
-function openModal(id) { $(id).classList.remove('hidden'); if (id === 'scaleModal') setScale(1); }
+function openModal(id) { $(id).classList.remove('hidden'); }
 document.querySelectorAll('[data-mclose]').forEach((b) => (b.onclick = () => b.closest('.modal').classList.add('hidden')));
 function setScale(v) {
   v = Math.min(scaleMax, Math.max(scaleMin, Number(v)));
@@ -211,7 +239,7 @@ function setScale(v) {
 }
 $('scaleRange').addEventListener('input', (e) => setScale(e.target.value));
 document.querySelectorAll('.presets button').forEach((p) => (p.onclick = () => setScale(p.dataset.s)));
-$('scaleApply').onclick = () => { post('action', { id: selected, action: 'scale', value: Number($('scaleRange').value) }); $('scaleModal').classList.add('hidden'); };
+$('scaleApply').onclick = () => post('applyScale', { value: Number($('scaleRange').value) });
 $('kickApply').onclick = () => { post('action', { id: selected, action: 'kick', value: $('kickReason').value.trim() }); $('kickModal').classList.add('hidden'); };
 
 function renderPill() {
@@ -227,7 +255,8 @@ function show(v) {
   $('pForm').classList.toggle('hidden', !(v === 'player' && !report));
   $('pReport').classList.toggle('hidden', !(v === 'player' && report));
   $('admin').classList.toggle('hidden', v !== 'admin');
-  ['pForm', 'pReport', 'admin'].forEach((id) => { const el = $(id); el.style.animation = 'none'; void el.offsetWidth; el.style.animation = ''; });
+  $('pScale').classList.toggle('hidden', v !== 'scale');
+  ['pForm', 'pReport', 'admin', 'pScale'].forEach((id) => { const el = $(id); el.style.animation = 'none'; void el.offsetWidth; el.style.animation = ''; });
   document.querySelectorAll('.modal').forEach((m) => m.classList.add('hidden'));
   renderWaitbar(); renderPill();
 }
@@ -293,8 +322,6 @@ window.addEventListener('message', ({ data: d }) => {
     case 'openAdmin':
       isAdmin = true; me = d.me; reports = d.reports || [];
       clockOffset = d.serverNow - Date.now() / 1000;
-      scaleMin = d.scaleMin || scaleMin; scaleMax = d.scaleMax || scaleMax;
-      $('scaleRange').min = scaleMin; $('scaleRange').max = scaleMax;
       if (!reports.some((r) => r.id === selected)) selected = null;
       show('admin'); renderList(); renderDetail(true);
       break;
@@ -304,6 +331,25 @@ window.addEventListener('message', ({ data: d }) => {
       if (d.newReport) toast(`${d.newReport.name} (ID ${d.newReport.src}): ${d.newReport.message.slice(0, 60)}`, 'report', `Nuevo reporte #${d.newReport.id} · ${d.newReport.categoryLabel}`);
       if (view === 'admin') { renderList(); renderDetail(false); }
       renderPill();
+      break;
+    case 'openScale':
+      scaleMin = d.min; scaleMax = d.max;
+      $('scaleRange').min = scaleMin; $('scaleRange').max = scaleMax;
+      $('scaleBy').textContent = `${d.admin} te habilitó cambiar tu tamaño`;
+      setScale(d.current || 1);
+      show('scale');
+      break;
+    case 'shotTaken':
+      $('prShot').classList.remove('busy');
+      document.body.classList.remove('shooting');
+      if (d.data) { pendingShot = d.data; $('shotImg').src = d.data; $('shotPrev').classList.remove('hidden'); }
+      break;
+    case 'hideForShot':
+      document.body.classList.add('shooting');
+      break;
+    case 'image':
+      images[d.id] = d.data;
+      document.querySelectorAll(`[data-img="${CSS.escape(d.id)}"]`).forEach((b) => { b.innerHTML = `<img src="${d.data}" alt="">`; });
       break;
     case 'notify':
       toast(d.msg, d.kind);

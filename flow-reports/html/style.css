@@ -175,7 +175,7 @@ textarea::placeholder{color:var(--t3)}
   border:1px dashed var(--dash);border-radius:calc(var(--u)*.6);background:rgba(0,0,0,.25)}
 .chat::-webkit-scrollbar,.rlist::-webkit-scrollbar{width:calc(var(--u)*.15)}
 .chat::-webkit-scrollbar-thumb,.rlist::-webkit-scrollbar-thumb{background:rgba(255,45,120,.5);border-radius:99px}
-.msg{max-width:78%;display:flex;flex-direction:column;gap:calc(var(--u)*.1);animation:slotIn .35s var(--ease) both}
+.msg{max-width:78%;display:flex;flex-direction:column;align-items:flex-start;gap:calc(var(--u)*.1);animation:slotIn .35s var(--ease) both}
 .msg .who{font-size:calc(var(--u)*.38);font-weight:700;color:var(--t3);padding:0 calc(var(--u)*.2)}
 .msg .bubble{padding:calc(var(--u)*.4) calc(var(--u)*.55);border-radius:calc(var(--u)*.55);font-size:calc(var(--u)*.5);line-height:1.4;font-weight:500;word-wrap:break-word;
   background:rgba(255,255,255,.06);border:1px solid var(--line)}
@@ -259,6 +259,7 @@ textarea::placeholder{color:var(--t3)}
 .actions.locked button{opacity:.35;pointer-events:none}
 
 /* ventanas */
+.panel.small{width:calc(var(--u)*20)}
 .modal{position:absolute;inset:0;border-radius:var(--r-lg);background:rgba(5,4,6,.72);backdrop-filter:blur(3px);display:grid;place-items:center;z-index:5;animation:fadeIn .2s both}
 @keyframes fadeIn{from{opacity:0}}
 .mbox{position:relative;width:calc(var(--u)*17);display:flex;flex-direction:column;gap:calc(var(--u)*.6);padding:calc(var(--u)*.9);
@@ -292,3 +293,27 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:calc(var(-
 .toast.report{flex-direction:row;padding-right:calc(var(--u)*.6)}
 .toast.report span b{display:block;color:var(--pk);font-size:calc(var(--u)*.42)}
 @keyframes slotIn{from{opacity:0;transform:translateY(calc(var(--u)*.45)) scale(.96)}to{opacity:1;transform:none}}
+
+/* escala del jugador */
+#pScale .scaleview{height:calc(var(--u)*8)}
+.sref{position:absolute;left:12%;bottom:calc(var(--u)*.4);width:calc(var(--u)*1.1);height:calc(var(--u)*4.4);opacity:.18;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 80'%3E%3Ccircle cx='20' cy='9' r='8' fill='%23fff'/%3E%3Cpath d='M7 80V30c0-6 5-11 13-11s13 5 13 11v50z' fill='%23fff'/%3E%3C/svg%3E") bottom/contain no-repeat}
+/* captura */
+.camb{width:calc(var(--u)*1.9);height:calc(var(--u)*1.9);font-size:calc(var(--u)*.85)}
+.camb.busy{pointer-events:none;opacity:.5}
+.camb.busy svg{animation:pulse .6s infinite}
+.shotprev{display:flex;align-items:center;gap:calc(var(--u)*.55);padding:calc(var(--u)*.45);border:1px dashed var(--dash-on);border-radius:calc(var(--u)*.55);background:var(--on);animation:slotIn .35s var(--ease) both}
+.shotprev img{width:calc(var(--u)*5.2);aspect-ratio:16/9;object-fit:cover;border-radius:calc(var(--u)*.35);border:1px solid rgba(26,213,217,.5)}
+.shotinfo{flex:1;min-width:0}
+.shotinfo b{display:block;font-size:calc(var(--u)*.52);font-weight:700}
+.shotinfo small{display:block;font-size:calc(var(--u)*.4);color:var(--t2)}
+.msg .bubble.img{padding:calc(var(--u)*.2);overflow:hidden}
+.msg .bubble.img img{display:block;width:calc(var(--u)*9);aspect-ratio:16/9;object-fit:cover;border-radius:calc(var(--u)*.4);cursor:zoom-in;transition:transform .3s var(--ease)}
+.msg .bubble.img img:hover{transform:scale(1.03)}
+.msg .bubble.img .loading{width:calc(var(--u)*9);aspect-ratio:16/9;display:grid;place-items:center;font-size:calc(var(--u)*.42);color:var(--t3);border-radius:calc(var(--u)*.4);
+  background:linear-gradient(110deg,rgba(255,255,255,.03) 30%,rgba(255,255,255,.09) 50%,rgba(255,255,255,.03) 70%);background-size:200% 100%;animation:shimmer 1.2s linear infinite}
+@keyframes shimmer{to{background-position:-200% 0}}
+#lightbox{position:fixed;inset:0;z-index:60;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:calc(var(--u)*.5);background:rgba(5,4,6,.85);backdrop-filter:blur(4px);cursor:zoom-out;animation:fadeIn .2s both}
+#lightbox img{max-width:82vw;max-height:80vh;border-radius:calc(var(--u)*.6);border:1px solid rgba(26,213,217,.5);box-shadow:0 0 calc(var(--u)*2) rgba(49,62,189,.4);animation:slotIn .35s var(--ease2) both}
+#lightbox small{font-size:calc(var(--u)*.45);color:var(--t3)}
+body.shooting>*{visibility:hidden!important}

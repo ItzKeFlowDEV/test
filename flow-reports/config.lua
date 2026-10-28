@@ -26,7 +26,17 @@ Config.Admins = {
 }
 
 -- ===================== acciones =====================
+-- Escala: el boton "Escala" del admin le abre al jugador el menu de escala (rango de abajo).
 Config.ScaleMin, Config.ScaleMax = 0.5, 1.5
+-- Si usas otro script de escala, abrelo aqui y devuelve true (ej: ExecuteCommand('scalemenu') return true)
+Config.OpenScaleMenu = function()
+    return false   -- false = usar el menu de escala de flow-reports
+end
+
+-- Capturas de pantalla en el chat del reporte (necesita el recurso screenshot-basic)
+Config.ScreenshotQuality = 0.7   -- calidad JPG (0.1 - 1.0)
+Config.MaxScreenshotKB   = 1500  -- tamaño maximo por captura
+Config.MaxScreenshots    = 5     -- capturas maximas por reporte
 
 -- Menu de ropa que se abre al jugador con el boton "Skin". Ajustalo a tu script de ropa si hace falta.
 Config.OpenSkinMenu = function()
