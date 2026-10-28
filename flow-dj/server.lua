@@ -70,7 +70,7 @@ local function validUrl(url)
 end
 
 local function state(id)
-    if not states[id] then states[id] = { queue = {}, history = {}, current = nil, djVolume = 0.8, dj = nil } end
+    if not states[id] then states[id] = { queue = {}, history = {}, current = nil, djVolume = 0.8, dj = nil, eq = { low = 0.0, mid = 0.0, high = 0.0, filter = 0.0 } } end
     return states[id]
 end
 
@@ -204,6 +204,9 @@ RegisterNetEvent('flowdj:control', function(id, action, value)
         cur.position, cur.updatedAt = math.max(0.0, tonumber(value) or 0.0), GetGameTimer()
     elseif action == 'volume' then
         st.djVolume = math.max(0.0, math.min(1.0, tonumber(value) or 0.8))
+    elseif action == 'eq' and type(value) == 'table' then
+        local function n(v) return math.max(-1.0, math.min(1.0, tonumber(v) or 0.0)) end
+        st.eq = { low = n(value.low), mid = n(value.mid), high = n(value.high), filter = n(value.filter) }
     elseif action == 'remove' then
         table.remove(st.queue, tonumber(value) or 0)
     elseif action == 'playIndex' then

@@ -148,6 +148,8 @@ CreateThread(function()
             local camRot = math.rad(GetGameplayCamRot(2).z)
             local rx, ry = math.cos(camRot), math.sin(camRot)
             local mix = {}
+            local others = {}
+            for _, pid in ipairs(GetActivePlayers()) do others[#others + 1] = GetEntityCoords(GetPlayerPed(pid)) end
             for _, b in ipairs(booths) do
                 local st = states[b.id]
                 if st and st.current then
@@ -160,7 +162,9 @@ CreateThread(function()
                     local dx, dy = c.x - pos.x, c.y - pos.y
                     local len = math.sqrt(dx * dx + dy * dy)
                     local pan = len > 2.0 and ((dx * rx + dy * ry) / len) * 0.6 * math.min(1.0, len / 15.0) or 0.0
-                    mix[tostring(b.id)] = { f = f * b.volume, p = pan, d = math.floor(d), m = n > 0.6 and (n - 0.6) / 0.4 or 0.0 }
+                    local listeners = 0
+                    for _, o in ipairs(others) do if #(o - c) <= b.radius then listeners = listeners + 1 end end
+                    mix[tostring(b.id)] = { f = f * b.volume, p = pan, d = math.floor(d), m = n > 0.6 and (n - 0.6) / 0.4 or 0.0, n = listeners }
                 end
             end
             SendNUIMessage({ action = 'mix', mix = mix })

@@ -14,10 +14,13 @@ Cabinas de DJ con música de **YouTube** o **MP3/WAV**, audio 3D por distancia y
 - Detener la música de una cabina o eliminarla. Las cabinas se guardan en `data/booths.json`.
 
 ## DJ · tecla **E** en la cabina
-- Plato con la portada del video girando, brazo que baja al sonar, play/pausa, detener, siguiente y barra para adelantar.
-- **Master** de volumen con vúmetros.
-- **Cola**: pegar enlace de YouTube o .mp3/.wav → “Añadir a la cola” o “Poner ya”. Subir, quitar, poner ya, vaciar. **Historial** para volver a poner.
-- El título y la portada de YouTube se sacan solos.
+Panel estilo **CDJ + mezclador DJM**:
+- **Pantalla**: portada, título, artista, tiempo transcurrido y restante, y la **onda de la canción** (real con MP3/WAV) con lo que ya sonó en color. Clic en la onda para adelantar.
+- **Hot cues A–D**: clic para marcar un punto de la canción y clic otra vez para saltar ahí; clic derecho para borrarlo. Se ven también en la onda.
+- **Jog wheel** con anillo LED de progreso, portada girando en el centro, botones **CUE (stop)**, **PLAY/PAUSE**, **NEXT** y **CLEAR**.
+- **Mezclador**: EQ de 3 bandas (HI / MID / LOW), **FILTER** (izquierda graves, derecha agudos) y fader **MASTER** con vúmetros. El EQ y el filtro los oyen todos (solo MP3/WAV; YouTube no deja procesar su audio).
+- **Cola** (YouTube o MP3): añadir, poner ya, subir, quitar, vaciar, e **Historial**.
+- Arriba: **oyentes** dentro del radio, **alcance** en metros y luz **ON AIR**.
 
 ## Cómo se escucha
 - Todos los jugadores dentro del radio la escuchan sincronizada.

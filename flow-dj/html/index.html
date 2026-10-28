@@ -12,51 +12,77 @@
   <header class="phead">
     <div class="hex"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.5"/><path d="M12 3a9 9 0 0 1 9 9"/></svg></div>
     <div class="ptitle"><b id="djName">CABINA DJ</b><small id="djSub">—</small></div>
-    <span class="livechip" id="liveChip"><i></i>EN VIVO</span>
+    <div class="hstats">
+      <span class="hs"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6M16 4.5a3.5 3.5 0 0 1 0 7M18 14c2.2.6 3.5 2.6 3.5 6"/></svg><b id="hsListeners">0</b> oyentes</span>
+      <span class="hs"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><b id="hsRadius">0 m</b> alcance</span>
+      <span class="onair" id="onAir"><i></i>ON AIR</span>
+    </div>
     <button class="xbtn" data-close><svg viewBox="0 0 24 24"><path d="M7 7l10 10M17 7L7 17"/></svg></button>
   </header>
 
   <div class="djbody">
-    <!-- plato -->
-    <div class="deck">
-      <div class="turntable">
-        <div class="tt-plate">
-          <div class="vinyl" id="vinyl"><div class="label" id="vLabel"></div><span class="spindle"></span></div>
+    <!-- ============ CDJ ============ -->
+    <div class="cdj">
+      <div class="cdj-top"><span class="cdj-brand">FLOW<b>DJ</b></span><span class="cdj-model">CDJ-FD3000</span><span class="cdj-src" id="srcChip">USB</span></div>
+
+      <!-- pantalla -->
+      <div class="lcd">
+        <div class="lcd-head">
+          <div class="art" id="art"></div>
+          <div class="lcd-title"><b id="nowTitle">Nada sonando</b><small id="nowAuthor">Añade una canción de YouTube o un enlace .mp3</small></div>
+          <div class="lcd-times">
+            <div><small>ELAPSED</small><b id="tCur">0:00</b></div>
+            <div class="rem"><small>REMAIN</small><b id="tRem">-0:00</b></div>
+          </div>
         </div>
-        <div class="tonearm" id="tonearm"><i></i></div>
-        <div class="tt-leds"><span></span><span></span><span></span><span></span></div>
-        <div class="tt-brand">FLOW<b>DJ</b></div>
+        <div class="wave" id="wave"><canvas id="waveCv" width="900" height="90"></canvas><span class="phead-line" id="wHead"></span></div>
+        <div class="lcd-foot"><span id="nowBy">—</span><span id="tDur">0:00</span></div>
       </div>
 
-      <div class="nowinfo">
-        <div class="srcrow"><span class="srcchip" id="srcChip">—</span><span class="by" id="nowBy"></span></div>
-        <b id="nowTitle">Nada sonando</b>
-        <small id="nowAuthor">Añade una canción de YouTube o un enlace .mp3</small>
+      <!-- hot cues -->
+      <div class="pads" id="pads">
+        <button data-p="0"><em>A</em><span>—</span></button><button data-p="1"><em>B</em><span>—</span></button>
+        <button data-p="2"><em>C</em><span>—</span></button><button data-p="3"><em>D</em><span>—</span></button>
       </div>
 
-      <div class="timeline">
-        <span id="tCur">0:00</span>
-        <input type="range" id="seek" min="0" max="1000" value="0">
-        <span id="tDur">0:00</span>
-      </div>
-
-      <div class="transport">
-        <button class="tbtn" id="bStop" title="Detener"><svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1.5"/></svg></button>
-        <button class="tbtn big" id="bPlay" title="Play / Pausa"><svg class="ip" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg><svg class="ipa" viewBox="0 0 24 24"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg></button>
-        <button class="tbtn" id="bSkip" title="Siguiente"><svg viewBox="0 0 24 24"><path d="M5 5v14l10-7zM17 5h2v14h-2z"/></svg></button>
-      </div>
-
-      <div class="mixer">
-        <div class="vu" id="vuL"></div>
-        <div class="fader">
-          <div class="flabel"><span>MASTER</span><b id="volVal">80%</b></div>
-          <input type="range" id="vol" min="0" max="100" value="80">
+      <!-- jog + transporte -->
+      <div class="jogarea">
+        <div class="tleft">
+          <button class="rbtn cue" id="bStop" title="Detener"><span>CUE</span><small>STOP</small></button>
+          <button class="rbtn play" id="bPlay" title="Play / Pausa"><svg class="ip" viewBox="0 0 24 24"><path d="M7 5v14l11-7z"/></svg><svg class="ipa" viewBox="0 0 24 24"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg><small>PLAY/PAUSE</small></button>
         </div>
-        <div class="vu" id="vuR"></div>
+        <div class="jog" id="jog">
+          <div class="jog-ring"></div>
+          <div class="jog-plate"><div class="jog-grip"></div></div>
+          <div class="jog-center"><div class="jog-art" id="jogArt"></div><span class="jog-mark"></span></div>
+        </div>
+        <div class="tright">
+          <button class="sqbtn" id="bSkip" title="Siguiente"><svg viewBox="0 0 24 24"><path d="M5 5v14l10-7zM17 5h2v14h-2z"/></svg><small>NEXT</small></button>
+          <button class="sqbtn" id="bClear2" title="Vaciar cola"><svg viewBox="0 0 24 24"><path d="M5 7h14M10 11v6M14 11v6M6 7l1 13h10l1-13"/></svg><small>CLEAR</small></button>
+        </div>
       </div>
     </div>
 
-    <!-- cola -->
+    <!-- ============ MIXER ============ -->
+    <div class="djm">
+      <div class="djm-top">DJM<b>-FD</b></div>
+      <div class="knobs">
+        <div class="kb"><span>HI</span><div class="knob" data-eq="high"></div></div>
+        <div class="kb"><span>MID</span><div class="knob" data-eq="mid"></div></div>
+        <div class="kb"><span>LOW</span><div class="knob" data-eq="low"></div></div>
+        <div class="kb filter"><span>FILTER</span><div class="knob" data-eq="filter"></div></div>
+      </div>
+      <div class="eqnote" id="eqNote">EQ y filtro solo con MP3</div>
+      <div class="chan">
+        <div class="vu" id="vuL"></div>
+        <div class="vfader" id="vfader"><div class="vtrack"><i id="vfill"></i></div><div class="vcap" id="vcap"></div>
+          <div class="vscale"><span>10</span><span>8</span><span>6</span><span>4</span><span>2</span><span>0</span></div></div>
+        <div class="vu" id="vuR"></div>
+      </div>
+      <div class="chlabel"><span>MASTER</span><b id="volVal">80%</b></div>
+    </div>
+
+    <!-- ============ COLA ============ -->
     <div class="qcol">
       <div class="addbox">
         <div class="urlbox tile"><span class="kind" id="urlKind">LINK</span><input id="url" placeholder="Pega un enlace de YouTube o .mp3 / .wav"></div>
@@ -65,7 +91,7 @@
           <button class="ghostbtn tile" id="bNow"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>Poner ya</button>
         </div>
       </div>
-      <div class="qtabs"><button data-q="queue" class="on">Cola <em id="qCount">0</em></button><button data-q="history">Historial</button><button class="clear" id="bClear">Vaciar cola</button></div>
+      <div class="qtabs"><button data-q="queue" class="on">Cola <em id="qCount">0</em></button><button data-q="history">Historial</button><button class="clear" id="bClear">Vaciar</button></div>
       <div class="qlist" id="qList"></div>
     </div>
   </div>

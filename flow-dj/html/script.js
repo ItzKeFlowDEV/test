@@ -70,11 +70,15 @@ function buildFile(s, url, pos, fx = true) {
   if (fx) {
     const c = ctx();
     const node = c.createMediaElementSource(el);
-    const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 20000;
+    const bq = (type, f, q) => { const n = c.createBiquadFilter(); n.type = type; n.frequency.value = f; if (q) n.Q.value = q; return n; };
+    const low = bq('lowshelf', 120), mid = bq('peaking', 1000, 0.9), high = bq('highshelf', 6000);
+    const fLow = bq('lowpass', 20000, 0.8), fHigh = bq('highpass', 10, 0.8);       // filtro DJ (barrido)
+    const lp = bq('lowpass', 20000);                                               // apagado por distancia
     const gain = c.createGain(), pan = c.createStereoPanner(), an = c.createAnalyser();
     an.fftSize = 256; an.smoothingTimeConstant = 0.7;
-    node.connect(lp); lp.connect(gain); gain.connect(pan); pan.connect(an); an.connect(c.destination);
-    s.nodes = { lp, gain, pan, an };
+    [node, low, mid, high, fLow, fHigh, lp, gain, pan, an].reduce((a, b) => { a.connect(b); return b; });
+    an.connect(c.destination);
+    s.nodes = { lp, gain, pan, an, low, mid, high, fLow, fHigh };
   }
   s.seekTo = pos;
   el.src = url;
@@ -114,6 +118,14 @@ function apply(s) {
   s.nodes.gain.gain.setTargetAtTime(v, t, 0.08);
   s.nodes.pan.pan.setTargetAtTime(clamp(s.pan, -1, 1), t, 0.15);
   s.nodes.lp.frequency.setTargetAtTime(20000 * Math.pow(400 / 20000, clamp(s.muffle)), t, 0.15);
+  const eq = (states[s.id] && states[s.id].eq) || {};
+  const db = (v) => (Number(v) || 0) * ((Number(v) || 0) < 0 ? 26 : 9);           // corta hasta -26 dB, sube hasta +9 dB
+  s.nodes.low.gain.setTargetAtTime(db(eq.low), t, 0.05);
+  s.nodes.mid.gain.setTargetAtTime(db(eq.mid), t, 0.05);
+  s.nodes.high.gain.setTargetAtTime(db(eq.high), t, 0.05);
+  const f = Number(eq.filter) || 0;
+  s.nodes.fLow.frequency.setTargetAtTime(f < -0.02 ? 20000 * Math.pow(120 / 20000, -f) : 20000, t, 0.05);
+  s.nodes.fHigh.frequency.setTargetAtTime(f > 0.02 ? 10 * Math.pow(6000 / 10, f) : 10, t, 0.05);
 }
 
 const curTime = (s) => (s.kind === 'yt' ? (s.yt && s.yt.ready ? s.yt.player.getCurrentTime() || 0 : 0) : s.el ? s.el.currentTime : 0);
@@ -150,24 +162,154 @@ function sync(id) {
    ===================================================================== */
 const boothOf = (id) => booths.find((b) => b.id === id);
 
+/* hot cues (solo para el DJ, por cancion) */
+const cues = {};
+const cueKey = () => { const st = states[djId]; return st && st.current ? st.current.url : null; };
+document.querySelectorAll('#pads button').forEach((p) => {
+  p.onclick = () => {
+    const k = cueKey(), s = sources[djId];
+    if (!k || !s) return toast('No hay nada sonando', 'error');
+    cues[k] = cues[k] || [];
+    const i = Number(p.dataset.p);
+    if (cues[k][i] == null) { cues[k][i] = curTime(s); renderPads(); }
+    else post('control', { action: 'seek', value: cues[k][i] });
+  };
+  p.oncontextmenu = (e) => { e.preventDefault(); const k = cueKey(); if (k && cues[k]) { cues[k][Number(p.dataset.p)] = null; renderPads(); } };
+});
+function renderPads() {
+  const list = cues[cueKey()] || [];
+  document.querySelectorAll('#pads button').forEach((p) => {
+    const v = list[Number(p.dataset.p)];
+    p.classList.toggle('set', v != null);
+    p.querySelector('span').textContent = v != null ? fmt(v) : '—';
+    p.title = v != null ? 'Clic: saltar · clic derecho: borrar' : 'Clic: marcar este punto';
+  });
+}
+
+/* perillas del mixer (EQ + filtro) */
+let eqDraft = { low: 0, mid: 0, high: 0, filter: 0 }, eqTimer = null, drag = null;
+function drawKnob(el) {
+  const v = eqDraft[el.dataset.eq] || 0;
+  const ang = v * 135;
+  el.style.setProperty('--a', ang + 'deg');
+  // arco desde el centro (12 en punto) hasta el valor
+  if (v >= 0) { el.style.setProperty('--arcA', ang + 'deg'); el.style.setProperty('--arcB', '360deg'); }
+  else { el.style.setProperty('--arcA', '0deg'); el.style.setProperty('--arcB', (360 + ang) + 'deg'); }
+}
+document.querySelectorAll('.knob').forEach((k) => {
+  k.innerHTML = '<i></i>';
+  k.addEventListener('mousedown', (e) => { drag = { k, y: e.clientY, v: eqDraft[k.dataset.eq] || 0 }; e.preventDefault(); });
+  k.addEventListener('dblclick', () => setEq(k.dataset.eq, 0));
+  k.addEventListener('wheel', (e) => setEq(k.dataset.eq, (eqDraft[k.dataset.eq] || 0) - Math.sign(e.deltaY) * 0.05));
+  drawKnob(k);
+});
+function setEq(key, v) {
+  v = clamp(v, -1, 1); if (Math.abs(v) < 0.04) v = 0;
+  eqDraft[key] = v;
+  document.querySelectorAll('.knob').forEach(drawKnob);
+  const st = states[djId]; if (st) { st.eq = { ...eqDraft }; if (sources[djId]) apply(sources[djId]); }
+  clearTimeout(eqTimer); eqTimer = setTimeout(() => post('control', { action: 'eq', value: eqDraft }), 120);
+}
+
+/* fader vertical (master) */
+let faderDrag = false, volTimer = null;
+function setVol(v, send = true) {
+  v = clamp(v);
+  const st = states[djId]; if (st) { st.djVolume = v; if (sources[djId]) apply(sources[djId]); }
+  $('vcap').style.top = `calc(${(1 - v) * 100}% * 0.86 + 7%)`;
+  $('vfill').style.height = v * 100 + '%';
+  $('volVal').textContent = Math.round(v * 100) + '%';
+  if (send) { clearTimeout(volTimer); volTimer = setTimeout(() => post('control', { action: 'volume', value: v }), 120); }
+}
+const faderFromY = (y) => { const r = $('vfader').getBoundingClientRect(); return 1 - (y - r.top - r.height * 0.07) / (r.height * 0.86); };
+$('vfader').addEventListener('mousedown', (e) => { faderDrag = true; setVol(faderFromY(e.clientY)); e.preventDefault(); });
+$('vfader').addEventListener('wheel', (e) => setVol(((states[djId] && states[djId].djVolume) ?? 0.8) - Math.sign(e.deltaY) * 0.04));
+window.addEventListener('mousemove', (e) => {
+  if (faderDrag) setVol(faderFromY(e.clientY));
+  if (drag) setEq(drag.k.dataset.eq, drag.v + (drag.y - e.clientY) / 120);
+});
+window.addEventListener('mouseup', () => { faderDrag = false; drag = null; });
+
+/* onda de la cancion (real con MP3, generada con YouTube) */
+const waves = {};
+function seeded(str, n) {
+  let h = 2166136261; for (const ch of str) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
+  const out = []; let x = h >>> 0, prev = 0.5;
+  for (let i = 0; i < n; i++) {
+    x = (Math.imul(x ^ (x >>> 15), 2246822519) + 3266489917) >>> 0;
+    const r = x / 4294967296, sec = Math.sin(i / n * Math.PI);
+    prev = prev * 0.55 + (0.25 + r * 0.75) * 0.45;
+    out.push(clamp(prev * (0.55 + sec * 0.5) * (i % 16 < 2 ? 1.15 : 1)));
+  }
+  return out;
+}
+async function loadWave(cur) {
+  if (waves[cur.url]) return;
+  waves[cur.url] = seeded(cur.url, 300);
+  if (cur.kind !== 'file') return;
+  try {
+    const buf = await (await fetch(cur.url)).arrayBuffer();
+    const audio = await ctx().decodeAudioData(buf);
+    const data = audio.getChannelData(0), n = 300, step = Math.floor(data.length / n), peaks = [];
+    let max = 0;
+    for (let i = 0; i < n; i++) { let m = 0; for (let k = i * step; k < (i + 1) * step; k += 32) m = Math.max(m, Math.abs(data[k])); peaks.push(m); max = Math.max(max, m); }
+    waves[cur.url] = peaks.map((p) => p / (max || 1));
+  } catch (e) { /* sin CORS: se queda la onda generada */ }
+}
+const wcv = $('waveCv'), wcx = wcv.getContext('2d');
+function drawWave(prog) {
+  const st = states[djId], cur = st && st.current;
+  const W = wcv.width, H = wcv.height;
+  wcx.clearRect(0, 0, W, H);
+  if (!cur) return;
+  const w = waves[cur.url] || seeded(cur.url, 300), n = w.length, bw = W / n;
+  const playedX = prog * W;
+  for (let i = 0; i < n; i++) {
+    const x = i * bw, h = Math.max(2, w[i] * (H - 6));
+    const played = x < playedX;
+    wcx.fillStyle = played ? (i % 2 ? '#1ad5d9' : '#ff2d78') : (i % 2 ? '#3a4560' : '#2c3550');
+    wcx.fillRect(x, (H - h) / 2, Math.max(1, bw - 1), h);
+  }
+  // marcas de hot cue
+  (cues[cur.url] || []).forEach((v, i) => {
+    if (v == null) return;
+    const s = sources[djId], d = s ? durTime(s) : 0; if (!d) return;
+    wcx.fillStyle = ['#ff2d78', '#1ad5d9', '#ffb020', '#8b5cff'][i];
+    wcx.fillRect((v / d) * W - 1, 0, 3, H);
+  });
+}
+$('wave').addEventListener('click', (e) => {
+  const s = sources[djId], d = s ? durTime(s) : 0; if (!d) return;
+  const r = $('wave').getBoundingClientRect();
+  post('control', { action: 'seek', value: ((e.clientX - r.left) / r.width) * d });
+});
+
 function renderDJ() {
   if (view !== 'dj') return;
   const b = boothOf(djId) || {};
   const st = states[djId] || { queue: [], history: [] };
   const cur = st.current;
   $('djName').textContent = (b.name || 'CABINA DJ').toUpperCase();
-  $('djSub').textContent = `Se escucha a ${Math.round(b.radius || 0)} m · ${st.dj ? 'DJ: ' + st.dj.name : 'Sin DJ'}`;
+  $('djSub').textContent = st.dj ? `DJ en cabina: ${st.dj.name}` : 'Cabina libre';
+  $('hsRadius').textContent = Math.round(b.radius || 0) + ' m';
   document.body.classList.toggle('playing', !!(cur && cur.playing));
   $('nowTitle').textContent = cur ? cur.title : 'Nada sonando';
   $('nowAuthor').textContent = cur ? (cur.author || (cur.kind === 'yt' ? 'YouTube' : 'Audio')) : 'Añade una canción de YouTube o un enlace .mp3';
-  $('nowBy').textContent = cur ? 'puesta por ' + cur.by : '';
+  $('nowBy').textContent = cur ? 'Puesta por ' + cur.by : '—';
   const chip = $('srcChip');
-  chip.className = 'srcchip ' + (cur ? cur.kind : '');
-  chip.textContent = cur ? (cur.kind === 'yt' ? 'YOUTUBE' : 'MP3') : 'LIBRE';
-  const lbl = $('vLabel');
-  lbl.className = 'label' + (cur && cur.thumb ? ' img' : '');
-  lbl.style.backgroundImage = cur && cur.thumb ? `url("${cur.thumb}")` : '';
-  if (document.activeElement !== $('vol')) { $('vol').value = Math.round((st.djVolume ?? 0.8) * 100); setFill($('vol')); $('volVal').textContent = $('vol').value + '%'; }
+  chip.className = 'cdj-src ' + (cur ? cur.kind : '');
+  chip.textContent = cur ? (cur.kind === 'yt' ? 'YOUTUBE' : 'MP3') : 'NO TRACK';
+  const img = cur && cur.thumb ? `url("${cur.thumb}")` : '';
+  $('art').style.backgroundImage = img; $('jogArt').style.backgroundImage = img;
+  if (cur) loadWave(cur);
+  // EQ / filtro
+  if (!drag) { eqDraft = { low: 0, mid: 0, high: 0, filter: 0, ...(st.eq || {}) }; document.querySelectorAll('.knob').forEach(drawKnob); }
+  const eqOff = cur && cur.kind === 'yt';
+  document.querySelectorAll('.knob').forEach((k) => k.classList.toggle('off', !!eqOff));
+  $('eqNote').textContent = eqOff ? 'YouTube: EQ y filtro no disponibles' : 'Doble clic: resetear';
+  if (!faderDrag) setVol(st.djVolume ?? 0.8, false);
+  renderPads();
+  // cola / historial
   $('qCount').textContent = st.queue.length;
   const host = $('qList');
   const list = qtab === 'queue' ? st.queue : st.history;
@@ -176,8 +318,8 @@ function renderDJ() {
     const el = document.createElement('div');
     el.className = 'track tile';
     el.style.animationDelay = Math.min(i * 0.03, 0.4) + 's';
-    el.innerHTML = `<span class="n">${i + 1}</span><span class="thumb" ${t.thumb ? `style="background-image:url('${esc(t.thumb)}')"` : ''}>${t.thumb ? '' : '♫'}</span>
-      <div class="ti"><b>${esc(t.title)}</b><small>${t.kind === 'yt' ? 'YouTube' : 'MP3'} · ${esc(t.by || '')}</small></div>
+    el.innerHTML = `<span class="n">${String(i + 1).padStart(2, '0')}</span><span class="thumb" ${t.thumb ? `style="background-image:url('${esc(t.thumb)}')"` : ''}>${t.thumb ? '' : '♫'}</span>
+      <div class="ti"><b>${esc(t.title)}</b><small><span class="mini ${t.kind}">${t.kind === 'yt' ? 'YT' : 'MP3'}</span>${esc(t.by || '')}</small></div>
       <div class="tacts">${qtab === 'queue'
         ? `<button data-a="playIndex" title="Poner ya">▶</button>${i ? '<button data-a="up" title="Subir">▲</button>' : ''}<button data-a="remove" class="rm" title="Quitar">✕</button>`
         : '<button data-a="replay" title="Volver a poner">↻</button>'}</div>`;
@@ -211,13 +353,7 @@ $('bPlay').onclick = () => {
 $('bStop').onclick = () => post('control', { action: 'stop' });
 $('bSkip').onclick = () => post('control', { action: 'skip' });
 $('bClear').onclick = () => post('control', { action: 'clear' });
-$('seek').addEventListener('change', () => { const s = sources[djId]; const d = s ? durTime(s) : 0; if (d) post('control', { action: 'seek', value: ($('seek').value / 1000) * d }); });
-let volTimer = null;
-$('vol').addEventListener('input', () => {
-  setFill($('vol')); $('volVal').textContent = $('vol').value + '%';
-  const st = states[djId]; if (st) { st.djVolume = $('vol').value / 100; if (sources[djId]) apply(sources[djId]); }
-  clearTimeout(volTimer); volTimer = setTimeout(() => post('control', { action: 'volume', value: $('vol').value / 100 }), 150);
-});
+$('bClear2').onclick = () => post('control', { action: 'clear' });
 document.querySelectorAll('.qtabs [data-q]').forEach((b) => (b.onclick = () => {
   qtab = b.dataset.q;
   document.querySelectorAll('.qtabs [data-q]').forEach((x) => x.classList.toggle('on', x === b));
@@ -225,7 +361,7 @@ document.querySelectorAll('.qtabs [data-q]').forEach((b) => (b.onclick = () => {
 }));
 
 // VU metros
-const VU = 14;
+const VU = 18;
 ['vuL', 'vuR'].forEach((id) => { for (let i = 0; i < VU; i++) $(id).appendChild(document.createElement('i')); });
 const fbuf = new Uint8Array(128);
 function levelOf(s) {
@@ -333,9 +469,12 @@ function renderNowCard() {
 function frame() {
   if (view === 'dj') {
     const s = sources[djId];
-    const d = s ? durTime(s) : 0, c = s ? curTime(s) : 0;
-    $('tCur').textContent = fmt(c); $('tDur').textContent = fmt(d);
-    if (document.activeElement !== $('seek')) { $('seek').value = d ? (c / d) * 1000 : 0; setFill($('seek')); }
+    const d = s ? durTime(s) : 0, c = s ? curTime(s) : 0, prog = d ? clamp(c / d) : 0;
+    $('tCur').textContent = fmt(c); $('tDur').textContent = fmt(d); $('tRem').textContent = '-' + fmt(Math.max(0, d - c));
+    document.documentElement.style.setProperty('--prog', prog.toFixed(4));
+    $('wHead').style.left = prog * 100 + '%';
+    drawWave(prog);
+    const m = mix[djId]; $('hsListeners').textContent = m && m.n != null ? m.n : 0;
     const lv = levelOf(s) * ((states[djId] && states[djId].djVolume) ?? 0.8);
     ['vuL', 'vuR'].forEach((id, k) => [...$(id).children].forEach((el, i) => {
       const on = (lv + (k ? 0.03 : 0)) * VU > i;
