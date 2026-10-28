@@ -359,3 +359,6 @@ body.playing .jog-art{animation:spin 1.8s linear infinite}
 .tile,.ghostbtn,.addbox,.field,.urlbox,.coord,.seg,.stats{background-color:#130e14!important;background-image:linear-gradient(rgba(255,255,255,.035),rgba(255,255,255,.035))!important}
 .booth.on{background-image:linear-gradient(rgba(255,46,147,.1),rgba(255,46,147,.1))!important}
 .tile:hover,.ghostbtn:hover{background-image:linear-gradient(rgba(255,46,147,.08),rgba(255,46,147,.08))!important}
+/* aviso [E] a la derecha de la pantalla */
+#prompt{left:auto!important;right:calc(var(--u)*1.4);bottom:auto!important;top:50%;transform:translateY(-50%)!important;animation:promptIn .45s var(--ease2) both!important}
+@keyframes promptIn{from{opacity:0;transform:translate(calc(var(--u)*1.5),-50%)}to{opacity:1;transform:translateY(-50%)}}
