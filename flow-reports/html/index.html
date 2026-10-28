@@ -57,11 +57,36 @@
 <!-- ===================== JUGADOR: BARRA DE ESPERA ===================== -->
 <div id="waitbar" class="hidden">
   <div class="wtop">
-    <div class="hex mini"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/><path d="M12 8v3.5M12 13.8h.01"/></svg></div>
-    <div class="wtext"><b id="wTitle">Esperando por respuesta de administrador</b><small id="wSub">Posición #1 en la cola · /reportar para ver</small></div>
-    <span class="timer" id="wTimer">00:00</span>
+    <div class="wav" id="wAvatar">
+      <span class="ring"></span>
+      <div class="hex mini"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/><path d="M12 8v3.5M12 13.8h.01"/></svg></div>
+      <b class="ini" id="wIni">A</b>
+    </div>
+    <div class="wtext">
+      <small id="wKicker">REPORTE #1</small>
+      <b id="wTitle">Esperando a un administrador</b>
+      <span id="wSub">Posición #1 en la cola</span>
+    </div>
+    <div class="wright">
+      <span class="timer" id="wTimer">00:00</span>
+      <span class="wkey"><kbd>/reportar</kbd></span>
+    </div>
   </div>
-  <div class="wbar"><i></i></div>
+
+  <div class="steps" id="wSteps">
+    <div class="step" data-s="0"><i></i><span>Enviado</span></div>
+    <div class="line" data-l="0"><em></em></div>
+    <div class="step" data-s="1"><i></i><span id="wStepQueue">En cola</span></div>
+    <div class="line" data-l="1"><em></em></div>
+    <div class="step" data-s="2"><i></i><span>Atendiendo</span></div>
+    <div class="line" data-l="2"><em></em></div>
+    <div class="step" data-s="3"><i></i><span>Resuelto</span></div>
+  </div>
+
+  <div class="wmsg hidden" id="wMsg">
+    <span class="wmsgtag">NUEVA RESPUESTA</span>
+    <p><b id="wMsgName">Admin</b> <span id="wMsgText">...</span></p>
+  </div>
 </div>
 
 <!-- ===================== JUGADOR: MENU DE ESCALA (lo abre un admin) ===================== -->

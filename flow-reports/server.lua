@@ -53,6 +53,14 @@ local function admins()
 end
 
 ---------------------------------------------------------------- utilidades
+-- nombre para mostrar: sin codigos de color (^1, ~r~) y nunca vacio
+local function nameOf(src, fallback)
+    local n = GetPlayerName(src) or ''
+    n = n:gsub('%^%d', ''):gsub('~%a~', ''):gsub('[%c<>]', ''):gsub('^%s+', ''):gsub('%s+$', '')
+    if n == '' then return fallback or ('Jugador ' .. tostring(src)) end
+    return n
+end
+
 local function notify(src, msg, kind)
     TriggerClientEvent('flowreports:notify', src, msg, kind or 'info')
 end
@@ -153,7 +161,7 @@ RegisterNetEvent('flowreports:create', function(cat, message)
     end
 
     local report = {
-        id = nextId, src = src, name = GetPlayerName(src), category = c.id, categoryLabel = c.label, icon = c.icon,
+        id = nextId, src = src, name = nameOf(src), category = c.id, categoryLabel = c.label, icon = c.icon,
         message = message, created = now(), updated = now(), status = 'open', messages = {}
     }
     nextId = nextId + 1
@@ -200,7 +208,7 @@ end)
 RegisterCommand(Config.AdminCommand, function(src)
     if src == 0 then return end
     if not isAdmin(src) then return notify(src, 'No tienes permiso para ver los reportes', 'error') end
-    TriggerClientEvent('flowreports:openAdmin', src, adminList(), now(), { id = src, name = GetPlayerName(src) })
+    TriggerClientEvent('flowreports:openAdmin', src, adminList(), now(), { id = src, name = nameOf(src, 'Administrador') })
 end, false)
 
 local function adminReport(src, id)
@@ -216,7 +224,7 @@ RegisterNetEvent('flowreports:claim', function(id)
         return notify(src, ('Ese reporte ya lo atiende %s'):format(report.claimedBy.name), 'error')
     end
     report.status = 'claimed'
-    report.claimedBy = { src = src, name = GetPlayerName(src) }
+    report.claimedBy = { src = src, name = nameOf(src, 'Administrador') }
     addMessage(report, 'system', 'Sistema', report.claimedBy.name .. ' está atendiendo tu reporte')
     sendPlayer(report)
     sendAdmins()
@@ -241,9 +249,9 @@ RegisterNetEvent('flowreports:reply', function(id, text)
     if not report or text == '' then return end
     if not report.claimedBy then
         report.status = 'claimed'
-        report.claimedBy = { src = src, name = GetPlayerName(src) }
+        report.claimedBy = { src = src, name = nameOf(src, 'Administrador') }
     end
-    addMessage(report, 'admin', GetPlayerName(src), text)
+    addMessage(report, 'admin', nameOf(src, 'Administrador'), text)
     sendPlayer(report)
     sendAdmins()
 end)
@@ -251,7 +259,7 @@ end)
 RegisterNetEvent('flowreports:close', function(id)
     local src = source
     local report = adminReport(src, id)
-    if report then closeReport(report, GetPlayerName(src)) end
+    if report then closeReport(report, nameOf(src, 'Administrador')) end
 end)
 
 ---------------------------------------------------------------- acciones sobre el jugador
@@ -267,7 +275,7 @@ RegisterNetEvent('flowreports:action', function(id, action, value)
     if not report then return end
     local target = report.src
     if report.offline or not GetPlayerName(target) then return notify(src, 'El jugador ya no está conectado', 'error') end
-    local adminName = GetPlayerName(src)
+    local adminName = nameOf(src, 'Administrador')
 
     if action == 'goto' then
         local c = coordsOf(target)

@@ -93,7 +93,7 @@ function renderPlayerReport() {
   const claimed = report.status === 'claimed';
   $('prStatus').classList.toggle('claimed', claimed);
   $('prPos').textContent = claimed ? '✓' : report.position;
-  $('prState').textContent = claimed ? `${report.admin} está atendiendo tu reporte` : `Posición #${report.position} en la cola`;
+  $('prState').textContent = claimed ? `${report.admin || 'Un administrador'} está atendiendo tu reporte` : `Posición #${report.position} en la cola`;
   $('prSub').textContent = claimed ? 'Puedes escribirle por aquí' : 'Esperando por respuesta de administrador';
   const chat = $('prChat');
   const before = chat.childElementCount;
@@ -118,34 +118,59 @@ $('shotSend').onclick = () => {
 };
 
 let lastAdminMsgs = 0;
+const initial = (n) => (String(n || 'A').trim()[0] || 'A').toUpperCase();
+function setSteps(step, queueLabel) {
+  // step: 1 = en cola, 2 = atendiendo, 3 = resuelto
+  document.querySelectorAll('#wSteps .step').forEach((el) => {
+    const s = Number(el.dataset.s);
+    el.className = 'step' + (s < step || step === 3 ? ' ok' : s === step ? ' now' : '');
+  });
+  document.querySelectorAll('#wSteps .line').forEach((el) => {
+    const l = Number(el.dataset.l);
+    el.className = 'line' + (l < step - 1 || step === 3 ? ' ok' : l === step - 1 ? ' now' : '');
+  });
+  if (queueLabel) $('wStepQueue').textContent = queueLabel;
+}
+
 function renderWaitbar() {
   const wb = $('waitbar');
   if (!report || view === 'player') { if (!wb.classList.contains('done')) wb.classList.add('hidden'); return; }
+  clearTimeout(showDone.t);
   wb.classList.remove('hidden', 'done');
-  const adminMsgs = report.messages.filter((m) => m.from === 'admin').length;
-  const unread = adminMsgs > lastAdminMsgs;
-  wb.classList.toggle('claimed', report.status === 'claimed');
+  const adminName = report.admin || 'Un administrador';
+  const adminMsgs = report.messages.filter((m) => m.from === 'admin');
+  const unread = adminMsgs.length > lastAdminMsgs;
+  const claimed = report.status === 'claimed';
+  wb.classList.toggle('claimed', claimed);
   wb.classList.toggle('reply', unread);
-  if (unread) {
-    $('wTitle').textContent = `${report.admin || 'Un admin'} te respondió`;
-    $('wSub').textContent = 'Usa /reportar para leer y contestar';
-  } else if (report.status === 'claimed') {
-    $('wTitle').textContent = `${report.admin} está atendiendo tu reporte`;
-    $('wSub').textContent = `Reporte #${report.id} · /reportar para chatear`;
+  $('wKicker').textContent = `REPORTE #${report.id}`;
+  $('wTimer').textContent = clock(serverTime() - report.created);
+  $('wIni').textContent = initial(adminName);
+  if (claimed) {
+    $('wTitle').textContent = unread ? `${adminName} te respondió` : `${adminName} está atendiendo tu reporte`;
+    $('wSub').textContent = unread ? 'Abre /reportar para contestar' : 'Puedes escribirle con /reportar';
+    setSteps(2, 'En cola');
   } else {
-    $('wTitle').textContent = 'Esperando por respuesta de administrador';
-    $('wSub').textContent = `Posición #${report.position} en la cola · /reportar para ver`;
+    $('wTitle').textContent = 'Esperando a un administrador';
+    $('wSub').textContent = report.position > 1 ? `Hay ${report.position - 1} ${report.position === 2 ? 'reporte' : 'reportes'} antes que el tuyo` : 'Eres el siguiente en la cola';
+    setSteps(1, `En cola #${report.position}`);
   }
+  const last = adminMsgs[adminMsgs.length - 1];
+  $('wMsg').classList.toggle('hidden', !(unread && last));
+  if (unread && last) { $('wMsgName').textContent = (last.name || adminName) + ':'; $('wMsgText').textContent = last.text || '📷 Captura'; }
 }
 
 function showDone(text) {
   const wb = $('waitbar');
   wb.classList.remove('hidden', 'claimed', 'reply');
   wb.classList.add('done');
-  $('wTitle').textContent = text;
-  $('wSub').textContent = 'Gracias por reportar';
+  $('wIni').textContent = '✓';
+  $('wTitle').textContent = 'Reporte resuelto';
+  $('wSub').textContent = text;
+  $('wMsg').classList.add('hidden');
+  setSteps(3);
   clearTimeout(showDone.t);
-  showDone.t = setTimeout(() => { wb.classList.add('hidden'); wb.classList.remove('done'); }, 6000);
+  showDone.t = setTimeout(() => { wb.classList.add('hidden'); wb.classList.remove('done'); }, 7000);
 }
 
 /* ============================ admin ============================ */
