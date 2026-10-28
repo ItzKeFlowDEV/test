@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Flow DJ</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ===================== PANEL DE DJ ===================== -->
+<section id="dj" class="panel wide hidden">
+  <header class="phead">
+    <div class="hex"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.5"/><path d="M12 3a9 9 0 0 1 9 9"/></svg></div>
+    <div class="ptitle"><b id="djName">CABINA DJ</b><small id="djSub">—</small></div>
+    <span class="livechip" id="liveChip"><i></i>EN VIVO</span>
+    <button class="xbtn" data-close><svg viewBox="0 0 24 24"><path d="M7 7l10 10M17 7L7 17"/></svg></button>
+  </header>
+
+  <div class="djbody">
+    <!-- plato -->
+    <div class="deck">
+      <div class="turntable">
+        <div class="tt-plate">
+          <div class="vinyl" id="vinyl"><div class="label" id="vLabel"></div><span class="spindle"></span></div>
+        </div>
+        <div class="tonearm" id="tonearm"><i></i></div>
+        <div class="tt-leds"><span></span><span></span><span></span><span></span></div>
+        <div class="tt-brand">FLOW<b>DJ</b></div>
+      </div>
+
+      <div class="nowinfo">
+        <div class="srcrow"><span class="srcchip" id="srcChip">—</span><span class="by" id="nowBy"></span></div>
+        <b id="nowTitle">Nada sonando</b>
+        <small id="nowAuthor">Añade una canción de YouTube o un enlace .mp3</small>
+      </div>
+
+      <div class="timeline">
+        <span id="tCur">0:00</span>
+        <input type="range" id="seek" min="0" max="1000" value="0">
+        <span id="tDur">0:00</span>
+      </div>
+
+      <div class="transport">
+        <button class="tbtn" id="bStop" title="Detener"><svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1.5"/></svg></button>
+        <button class="tbtn big" id="bPlay" title="Play / Pausa"><svg class="ip" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg><svg class="ipa" viewBox="0 0 24 24"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg></button>
+        <button class="tbtn" id="bSkip" title="Siguiente"><svg viewBox="0 0 24 24"><path d="M5 5v14l10-7zM17 5h2v14h-2z"/></svg></button>
+      </div>
+
+      <div class="mixer">
+        <div class="vu" id="vuL"></div>
+        <div class="fader">
+          <div class="flabel"><span>MASTER</span><b id="volVal">80%</b></div>
+          <input type="range" id="vol" min="0" max="100" value="80">
+        </div>
+        <div class="vu" id="vuR"></div>
+      </div>
+    </div>
+
+    <!-- cola -->
+    <div class="qcol">
+      <div class="addbox">
+        <div class="urlbox tile"><span class="kind" id="urlKind">LINK</span><input id="url" placeholder="Pega un enlace de YouTube o .mp3 / .wav"></div>
+        <div class="addbtns">
+          <button class="primary" id="bAdd"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Añadir a la cola</button>
+          <button class="ghostbtn tile" id="bNow"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>Poner ya</button>
+        </div>
+      </div>
+      <div class="qtabs"><button data-q="queue" class="on">Cola <em id="qCount">0</em></button><button data-q="history">Historial</button><button class="clear" id="bClear">Vaciar cola</button></div>
+      <div class="qlist" id="qList"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== ADMIN ===================== -->
+<section id="admin" class="panel wide hidden">
+  <header class="phead">
+    <div class="hex"><svg viewBox="0 0 24 24"><path d="M12 21s-6-5.6-6-11a6 6 0 0 1 12 0c0 5.4-6 11-6 11z"/><circle cx="12" cy="10" r="2.2"/></svg></div>
+    <div class="ptitle"><b>CABINAS DJ</b><small id="admSub">0 cabinas</small></div>
+    <button class="primary" id="bNew"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Nueva cabina aquí</button>
+    <button class="xbtn" data-close><svg viewBox="0 0 24 24"><path d="M7 7l10 10M17 7L7 17"/></svg></button>
+  </header>
+  <div class="acols">
+    <div class="acol"><div class="blist" id="bList"></div></div>
+    <div class="acol main" id="editor">
+      <div class="empty big" id="edEmpty"><div class="hex ghosthex"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.5"/></svg></div>
+        <b>Crea o elige una cabina</b><small>Ponte donde quieres la cabina y pulsa “Nueva cabina aquí”</small></div>
+      <div id="edForm" class="hidden">
+        <div class="edgrid">
+          <div class="edleft">
+            <label>Nombre</label>
+            <div class="tile field"><input id="fName" maxlength="40" placeholder="Ej. Bahama Mamas, Playa Vespucci..."></div>
+            <label>Posición</label>
+            <div class="posrow">
+              <span class="coord" id="fCoords">0, 0, 0</span>
+              <button class="ghostbtn tile" id="bHere"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>Mi posición</button>
+              <button class="ghostbtn tile" id="bTp"><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg>Ir</button>
+            </div>
+            <div class="slider"><div class="slhead"><label>Se escucha hasta</label><b id="vRadius">40 m</b></div><input type="range" id="fRadius" min="5" max="250" step="1" value="40"></div>
+            <div class="slider"><div class="slhead"><label>Volumen máximo</label><b id="vVolume">85%</b></div><input type="range" id="fVolume" min="5" max="100" step="1" value="85"></div>
+            <div class="slider"><div class="slhead"><label>Distancia para abrir la cabina</label><b id="vInteract">2.5 m</b></div><input type="range" id="fInteract" min="1" max="10" step="0.5" value="2.5"></div>
+            <label>Quién puede usarla</label>
+            <div class="seg" id="fAccess"><button data-a="all" class="on">Todos</button><button data-a="job">Un trabajo</button><button data-a="admin">Solo admins</button></div>
+            <div class="tile field hidden" id="jobField"><input id="fJob" maxlength="30" placeholder="Nombre del trabajo (ej. vanilla, bahamas)"></div>
+            <label class="toggle"><input type="checkbox" id="fBlip" checked><span></span>Mostrar en el mapa</label>
+          </div>
+          <div class="edright">
+            <div class="radar" id="radar">
+              <div class="ring r1"></div><div class="ring r2"></div><div class="ring r3"></div>
+              <div class="zone" id="zone"><span class="full"></span></div>
+              <div class="sweep"></div>
+              <div class="center"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.5"/></svg></div>
+              <span class="rlbl" id="rLbl">40 m</span>
+            </div>
+            <div class="legend"><span><i class="l1"></i>Volumen completo</span><span><i class="l2"></i>Se va apagando</span></div>
+            <small class="hint2">Mientras editas, el radio se ve en el suelo del juego.</small>
+          </div>
+        </div>
+        <div class="edfoot">
+          <button class="danger" id="bDel"><svg viewBox="0 0 24 24"><path d="M5 7h14M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>Eliminar</button>
+          <button class="ghostbtn tile" id="bMute"><svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1.5"/></svg>Detener música</button>
+          <button class="primary" id="bSave"><svg viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></svg>Guardar cabina</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- aviso para abrir la cabina -->
+<div id="prompt" class="hidden"><kbd>E</kbd><span>Abrir cabina DJ</span><b id="promptName">—</b></div>
+
+<!-- sonando ahora (para los que escuchan) -->
+<div id="nowcard" class="hidden">
+  <div class="ncdisc" id="ncDisc"></div>
+  <div class="nctext"><small id="ncBooth">SONANDO AHORA</small><b id="ncTitle">—</b><span id="ncMeta">—</span></div>
+  <div class="ncbars"><i></i><i></i><i></i><i></i></div>
+</div>
+
+<div id="ytHost"></div>
+<div id="toasts"></div>
+<script src="script.js"></script>
+</body>
+</html>
