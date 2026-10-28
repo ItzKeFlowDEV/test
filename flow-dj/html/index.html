@@ -10,12 +10,12 @@
 <!-- ===================== PANEL DE DJ ===================== -->
 <section id="dj" class="panel wide hidden">
   <header class="phead">
-    <div class="hex"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.5"/><path d="M12 3a9 9 0 0 1 9 9"/></svg></div>
+    <div class="sqbadge">DJ</div>
     <div class="ptitle"><b id="djName">CABINA DJ</b><small id="djSub">—</small></div>
     <div class="hstats">
-      <span class="hs"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6M16 4.5a3.5 3.5 0 0 1 0 7M18 14c2.2.6 3.5 2.6 3.5 6"/></svg><b id="hsListeners">0</b> oyentes</span>
-      <span class="hs"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><b id="hsRadius">0 m</b> alcance</span>
-      <span class="onair" id="onAir"><i></i>ON AIR</span>
+      <div class="hexstat"><div class="hx"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6M16 4.5a3.5 3.5 0 0 1 0 7"/></svg><b id="hsListeners">0</b></div><span>OYENTES</span></div>
+      <div class="hexstat"><div class="hx"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/></svg><b id="hsRadius">0</b></div><span>METROS</span></div>
+      <div class="hexstat air"><div class="hx"><svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3zM6 11a6 6 0 0 0 12 0M12 17v3"/></svg><b>LIVE</b></div><span id="onAir">ON AIR</span></div>
     </div>
     <button class="xbtn" data-close><svg viewBox="0 0 24 24"><path d="M7 7l10 10M17 7L7 17"/></svg></button>
   </header>
@@ -100,7 +100,7 @@
 <!-- ===================== ADMIN ===================== -->
 <section id="admin" class="panel wide hidden">
   <header class="phead">
-    <div class="hex"><svg viewBox="0 0 24 24"><path d="M12 21s-6-5.6-6-11a6 6 0 0 1 12 0c0 5.4-6 11-6 11z"/><circle cx="12" cy="10" r="2.2"/></svg></div>
+    <div class="sqbadge">DJ</div>
     <div class="ptitle"><b>CABINAS DJ</b><small id="admSub">0 cabinas</small></div>
     <button class="primary" id="bNew"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Nueva cabina aquí</button>
     <button class="xbtn" data-close><svg viewBox="0 0 24 24"><path d="M7 7l10 10M17 7L7 17"/></svg></button>
@@ -152,13 +152,15 @@
 </section>
 
 <!-- aviso para abrir la cabina -->
-<div id="prompt" class="hidden"><kbd>E</kbd><span>Abrir cabina DJ</span><b id="promptName">—</b></div>
+<div id="prompt" class="hidden"><kbd>E</kbd><div><span>Abrir cabina DJ</span><b id="promptName">—</b></div><i class="spark s2"></i></div>
 
 <!-- sonando ahora (para los que escuchan) -->
 <div id="nowcard" class="hidden">
-  <div class="ncdisc" id="ncDisc"></div>
-  <div class="nctext"><small id="ncBooth">SONANDO AHORA</small><b id="ncTitle">—</b><span id="ncMeta">—</span></div>
-  <div class="ncbars"><i></i><i></i><i></i><i></i></div>
+  <i class="spark s1"></i>
+  <div class="ncbadge"><div class="ncdisc" id="ncDisc"></div></div>
+  <div class="nctext"><b id="ncTitle">—</b><span id="ncMeta">—</span></div>
+  <div class="ncside"><div class="ncbars"><i></i><i></i><i></i><i></i></div><small id="ncDist">0 m</small></div>
+  <span id="ncBooth" hidden></span>
 </div>
 
 <div id="ytHost"></div>

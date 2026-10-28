@@ -291,7 +291,7 @@ function renderDJ() {
   const cur = st.current;
   $('djName').textContent = (b.name || 'CABINA DJ').toUpperCase();
   $('djSub').textContent = st.dj ? `DJ en cabina: ${st.dj.name}` : 'Cabina libre';
-  $('hsRadius').textContent = Math.round(b.radius || 0) + ' m';
+  $('hsRadius').textContent = Math.round(b.radius || 0);
   document.body.classList.toggle('playing', !!(cur && cur.playing));
   $('nowTitle').textContent = cur ? cur.title : 'Nada sonando';
   $('nowAuthor').textContent = cur ? (cur.author || (cur.kind === 'yt' ? 'YouTube' : 'Audio')) : 'Añade una canción de YouTube o un enlace .mp3';
@@ -459,9 +459,9 @@ function renderNowCard() {
   const wasHidden = card.classList.contains('hidden');
   card.classList.remove('hidden');
   if (wasHidden) { card.style.animation = 'none'; void card.offsetWidth; card.style.animation = ''; }
-  $('ncBooth').textContent = 'SONANDO AHORA · ' + best.b.name.toUpperCase();
   $('ncTitle').textContent = best.st.current.title;
-  $('ncMeta').textContent = `${best.st.current.playing ? 'DJ ' + (best.st.dj ? best.st.dj.name : best.st.current.by) : 'En pausa'} · a ${best.m.d} m`;
+  $('ncMeta').textContent = `${best.b.name} · ${best.st.current.playing ? (best.st.dj ? best.st.dj.name : best.st.current.by) : 'En pausa'}`;
+  $('ncDist').textContent = best.m.d + ' m';
   $('ncDisc').style.setProperty('--ncimg', best.st.current.thumb ? `url("${best.st.current.thumb}")` : '');
   $('ncDisc').style.animationPlayState = best.st.current.playing ? 'running' : 'paused';
 }
