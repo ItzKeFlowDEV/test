@@ -12,6 +12,8 @@ const ICONS = {
   car: '<path d="M5 16l1.5-5.5A2 2 0 0 1 8.4 9h7.2a2 2 0 0 1 1.9 1.5L19 16M4 16h16v3H4zM7 19v1M17 19v1"/>',
   user: '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/>',
   alert: '<circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16.5h.01"/>',
+  card: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/>',
+  eye: '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
   receipt: '<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6M9 16h3"/>'
 };
 const svg = (k) => `<svg viewBox="0 0 24 24">${ICONS[k] || ICONS.receipt}</svg>`;
@@ -68,24 +70,81 @@ function setTab(t) {
 document.querySelectorAll('#tabs button').forEach((b) => (b.onclick = () => setTab(b.dataset.tab)));
 
 /* ============================ recibo ============================ */
+const initials = (n) => String(n || '?').trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || '?';
+const fday = (t) => new Date((t - clockOffset) * 1000).toLocaleDateString('es', { day: '2-digit', month: 'short', year: 'numeric' });
+// codigo de transaccion estable a partir del id
+const txCode = (id) => { let h = 2166136261 ^ id; for (let i = 0; i < 6; i++) h = Math.imul(h ^ (h >>> 13), 16777619); return 'FB-' + pad(id) + '-' + ((h >>> 0).toString(16).toUpperCase().padStart(8, '0').slice(0, 4)); };
+// QR decorativo (21x21) con sus tres marcas de esquina, siempre igual para la misma factura
+function qrSvg(seed) {
+  const n = 21; let x = (seed * 9301 + 49297) % 233280 || 7;
+  const rnd = () => (x = (x * 9301 + 49297) % 233280) / 233280;
+  const finder = (r, c) => (r < 7 && c < 7) || (r < 7 && c >= n - 7) || (r >= n - 7 && c < 7);
+  let cells = '';
+  for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (!finder(r, c) && rnd() > 0.52) cells += `M${c} ${r}h1v1h-1z`;
+  const box = (r, c) => `M${c} ${r}h7v7h-7zM${c + 1} ${r + 1}v5h5v-5zM${c + 2} ${r + 2}h3v3h-3z`;
+  return `<svg class="qr" viewBox="-1 -1 23 23" shape-rendering="crispEdges"><rect x="-1" y="-1" width="23" height="23" fill="#fff" rx="1"/>
+    <path fill-rule="evenodd" fill="#0b0a0c" d="${box(0, 0)}${box(0, n - 7)}${box(n - 7, 0)}${cells}"/></svg>`;
+}
+function dueHtml(b) {
+  if (b.status !== 'unpaid' || !b.due) return '';
+  const total = b.due - b.created, gone = nowS() - b.created;
+  const pct = Math.max(0, Math.min(100, (gone / total) * 100));
+  return `<div class="rc-due ${overdue(b) ? 'late' : ''}">
+    <div class="rc-due-top"><span>${overdue(b) ? 'Vencida' : 'Tiempo para pagar'}</span><b data-countdown="${b.due}">${countdown(b.due)}</b></div>
+    <div class="rc-bar"><i style="width:${pct}%"></i></div></div>`;
+}
+function countdown(t) {
+  let s = Math.floor(t - nowS());
+  const late = s < 0; s = Math.abs(s);
+  const d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+  const str = d > 0 ? `${d}d ${String(h).padStart(2, '0')}h ${String(m).padStart(2, '0')}m` : `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+  return late ? `hace ${str}` : str;
+}
+setInterval(() => document.querySelectorAll('[data-countdown]').forEach((el) => { el.textContent = countdown(Number(el.dataset.countdown)); }), 1000);
+
 function receiptHtml(b, opts = {}) {
-  const j = jobOf(b);
-  return `<div class="receipt" style="--jc:${j.color}">
-    <div class="rhead"><span class="jbadge" style="--jc:${j.color}">${svg(j.icon)}${esc(j.label)}</span><span class="rno">Nº ${pad(b.id || 0)}</span></div>
-    <div><div class="rtitle">FACTURA</div><div class="rdate">${b.created ? fdate(b.created) : 'Se enviará ahora'}</div></div>
-    ${opts.preview ? '' : `<span class="stamp ${statusOf(b) === 'overdue' ? 'unpaid' : b.status}">${STATUS[statusOf(b)]}</span>`}
-    <div class="rsep"></div>
-    <div class="rrow"><span>Emitida por</span><b>${esc(b.issuerName)}</b></div>
-    <div class="rrow"><span>Cliente</span><b>${esc(b.receiverName)}</b></div>
-    <div class="rrow"><span>Concepto</span><b>${esc(b.reason || '—')}</b></div>
-    ${b.note ? `<div class="rnote">${esc(b.note)}</div>` : ''}
-    ${b.status === 'unpaid' && b.due ? `<div class="rrow due ${overdue(b) ? 'late' : ''}"><span>Vence</span><b>${fdate(b.due)} · ${left(b.due)}</b></div>` : ''}
-    ${opts.preview && D.dueHours ? `<div class="rrow due"><span>Vence</span><b>en ${D.dueHours} h${D.autopay ? ' · cobro automático' : ''}</b></div>` : ''}
-    ${(b.fee || 0) > 0 ? `<div class="rrow"><span>Importe</span><b>${money(b.amount)}</b></div><div class="rrow late"><span>Recargo por atraso</span><b>+ ${money(b.fee)}</b></div>` : ''}
-    ${b.status === 'paid' && b.paidAt ? `<div class="rrow"><span>Pagada</span><b>${fdate(b.paidAt)} · ${b.paidBy === 'cash' ? 'Efectivo' : b.paidBy === 'auto' ? 'Cobro automático' : 'Banco'}</b></div>` : ''}
-    <div class="rsep"></div>
-    <div class="rtotal"><span>TOTAL</span><b>${money(b.status === 'paid' ? paidTotal(b) : owed(b))}</b></div>
-    <div class="barcode"></div>
+  const j = opts.job || jobOf(b);
+  const st = opts.preview ? 'draft' : statusOf(b);
+  const total = b.status === 'paid' ? paidTotal(b) : owed(b);
+  const lateHours = b.due ? Math.max(0, Math.floor((nowS() - b.due) / 3600)) : 0;
+  const stLabel = { draft: 'BORRADOR', unpaid: 'PENDIENTE', overdue: 'VENCIDA', paid: 'PAGADA', cancelled: 'ANULADA' }[st];
+  return `<div class="rcpt st-${st}" style="--jc:${j.color}">
+    <div class="rc-wm">${svg(j.icon)}</div>
+    <div class="rc-top">
+      <div class="rc-brand"><span class="rc-logo">${svg(j.icon)}</span><div><b>${esc(j.label)}</b><small>${esc(j.company || 'Factura oficial')}</small></div></div>
+      <div class="rc-no"><small>FACTURA</small><b>#${pad(b.id || 0)}</b></div>
+    </div>
+    <div class="rc-meta">
+      <div><small>Emitida</small><b>${b.created ? fday(b.created) : 'Hoy'}</b></div>
+      <div><small>${b.status === 'paid' ? 'Pagada' : 'Vence'}</small><b>${b.status === 'paid' && b.paidAt ? fday(b.paidAt) : b.due ? fday(b.due) : opts.preview && D && D.dueHours ? `en ${D.dueHours} h` : '—'}</b></div>
+      <div><small>Estado</small><b class="rc-pill">${stLabel}</b></div>
+    </div>
+    <div class="rc-parties">
+      <div><small>Emitido por</small><p><span class="av">${initials(b.issuerName)}</span><b>${esc(b.issuerName)}</b></p></div>
+      <div><small>Facturado a</small><p><span class="av b">${initials(b.receiverName)}</span><b>${esc(b.receiverName)}</b></p></div>
+    </div>
+    <div class="rc-items">
+      <div class="rc-ih"><span>Concepto</span><span>Cant.</span><span>Importe</span></div>
+      <div class="rc-it"><span><b>${esc(b.reason || 'Sin concepto')}</b>${b.note ? `<small>${esc(b.note)}</small>` : ''}</span><span>1</span><span>${money(b.amount)}</span></div>
+      ${(b.fee || 0) > 0 ? `<div class="rc-it late"><span><b>Recargo por atraso</b><small>${D && D.lateFee ? `${D.lateFee.perHour}%/h · ${lateHours} h vencida` : 'Pago fuera de plazo'}</small></span><span>1</span><span>+${money(b.fee)}</span></div>` : ''}
+    </div>
+    <div class="rc-sum">
+      <div><span>Subtotal</span><b>${money(b.amount)}</b></div>
+      ${(b.fee || 0) > 0 ? `<div class="late"><span>Recargos</span><b>+${money(b.fee)}</b></div>` : ''}
+      <div class="rc-total"><span>${b.status === 'paid' ? 'Total pagado' : 'Total a pagar'}</span><b>${money(total)}</b></div>
+      ${b.status === 'paid' ? `<div class="rc-paid"><span>Método</span><b>${b.paidBy === 'cash' ? 'Efectivo' : b.paidBy === 'auto' ? 'Cobro automático (banco)' : 'Transferencia bancaria'}</b></div>` : ''}
+    </div>
+    ${opts.preview ? '' : dueHtml(b)}
+    <div class="rc-tear"></div>
+    <div class="rc-foot">
+      ${qrSvg((b.id || 1) * 7919)}
+      <div class="rc-codes">
+        <div class="barcode"></div>
+        <span class="tx">${b.id ? txCode(b.id) : 'FB-BORRADOR'}</span>
+        <small>${b.status === 'paid' ? '✓ Pago verificado · comprobante válido' : st === 'cancelled' ? 'Factura anulada por la empresa' : 'Documento generado por ' + esc(j.label)}</small>
+      </div>
+    </div>
+    ${opts.preview ? '' : `<span class="stamp ${st}">${stLabel}</span>`}
   </div>`;
 }
 
@@ -131,8 +190,10 @@ function renderMineSide() {
       : `<div class="latebox" style="color:var(--t2);background:var(--tile);border-color:var(--dash)">${svg('alert')}Vence ${left(b.due)}. Después ${D.autopay ? 'se cobra sola del banco y ' : ''}suma ${D.lateFee.perHour}%/h de recargo.</div>`)
     : '';
   side.innerHTML = '<div class="sectlbl"><span>Detalle</span></div>' + receiptHtml(b) + lateInfo +
-    (b.status === 'unpaid' ? `<div class="raction"><button class="primary big" id="btnPay">${svg('receipt')}Pagar ${money(owed(b))}</button></div>` : '');
+    `<div class="raction">${b.status === 'unpaid' ? `<button class="primary big" id="btnPay">${svg('card')}Pagar ${money(owed(b))}</button>` : ''}
+      <button class="ghostbtn tile big" id="btnShow" title="Enseñar el recibo al jugador más cercano">${svg('eye')}Enseñar</button></div>`;
   if ($('btnPay')) $('btnPay').onclick = () => openPay(b);
+  $('btnShow').onclick = () => post('show', { id: b.id });
 }
 document.querySelectorAll('#mineFilters button').forEach((b) => (b.onclick = () => {
   mineFilter = b.dataset.f;
@@ -323,6 +384,34 @@ function showPopup(b, command) {
   popTimer = setTimeout(() => { p.classList.add('out'); setTimeout(() => p.classList.add('hidden'), 350); }, 9000);
 }
 
+/* ============================ pago aprobado ============================ */
+function showPaid(m) {
+  const o = $('paidOverlay');
+  $('poAmount').textContent = money(m.total);
+  $('poMethod').textContent = m.method === 'cash' ? 'Pagado en efectivo' : 'Transferencia bancaria';
+  $('poTx').textContent = txCode(m.id);
+  o.classList.remove('hidden');
+  o.style.animation = 'none'; void o.offsetWidth; o.style.animation = '';
+  clearTimeout(showPaid.t);
+  showPaid.t = setTimeout(() => o.classList.add('hidden'), 2600);
+}
+$('paidOverlay').onclick = () => $('paidOverlay').classList.add('hidden');
+
+/* ============================ recibo que te enseñan ============================ */
+function showViewer(m) {
+  const prevOffset = clockOffset;
+  if (!D) clockOffset = m.serverNow - Date.now() / 1000;
+  if (m.currency && !D) D = { currency: m.currency, jobs: {} };
+  $('vwBy').textContent = m.shownBy;
+  $('vwBody').innerHTML = receiptHtml(m.bill, { job: m.job });
+  const v = $('viewer');
+  v.classList.remove('hidden', 'out');
+  const bar = v.querySelector('.vwbar i'); bar.style.animation = 'none'; void bar.offsetWidth; bar.style.animation = '';
+  clearTimeout(showViewer.t);
+  showViewer.t = setTimeout(() => { v.classList.add('out'); setTimeout(() => v.classList.add('hidden'), 350); }, 12000);
+  if (D && D.me) clockOffset = prevOffset;
+}
+
 /* ============================ comun ============================ */
 function toast(msg, kind = 'info') {
   const t = document.createElement('div');
@@ -366,6 +455,10 @@ window.addEventListener('message', ({ data: m }) => {
       else toast(`Nueva factura de ${m.bill.jobLabel}: ${m.bill.reason} · ${money(m.bill.amount)}`, 'info');
       break;
     case 'paid':
+      showPaid(m);
+      break;
+    case 'viewReceipt':
+      showViewer(m);
       break;
     case 'notify':
       toast(m.msg, m.kind);

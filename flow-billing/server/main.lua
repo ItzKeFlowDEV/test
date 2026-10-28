@@ -68,13 +68,13 @@ local function sendData(src)
             canBillJob = access == 'ok', jobBlocked = access ~= 'ok' and access or nil,
             minGrade = j and j.minGrade or 0, canBillPersonal = Config.Universal.enabled, isBoss = isBoss(p)
         },
-        jobs = { [PERSONAL] = { label = Config.Universal.label, color = Config.Universal.color, icon = Config.Universal.icon } },
+        jobs = { [PERSONAL] = { label = Config.Universal.label, company = Config.Universal.company, color = Config.Universal.color, icon = Config.Universal.icon } },
         currency = Config.Currency, allowById = Config.AllowById,
         lateFee = Config.LateFee.enabled and { perHour = Config.LateFee.percentPerHour, max = Config.LateFee.maxPercent } or nil,
         dueHours = Config.AutoPay.dueHours, autopay = Config.AutoPay.enabled,
         myBills = withFees(DB.byReceiver(p.identifier)), serverNow = os.time()
     }
-    for name, cfg in pairs(Config.Jobs) do data.jobs[name] = { label = cfg.label, color = cfg.color, icon = cfg.icon } end
+    for name, cfg in pairs(Config.Jobs) do data.jobs[name] = { label = cfg.label, company = cfg.company, color = cfg.color, icon = cfg.icon } end
     if j then
         data.job = { key = p.job, label = j.label, color = j.color, icon = j.icon, commission = j.commission,
             presets = j.presets, allowCustom = j.allowCustom, maxAmount = Config.MaxAmount }
@@ -205,8 +205,26 @@ RegisterNetEvent('flowbilling:pay', function(id, method)
     local ok, total, fee = payBill(src, bill, method)
     if not ok then return notify(src, total, 'error') end
     notify(src, ('Pagaste la factura #%d · %s%s'):format(bill.id, money(total), fee > 0 and (' (incluye %s de recargo)'):format(money(fee)) or ''), 'success')
-    TriggerClientEvent('flowbilling:paid', src, bill.id)
+    TriggerClientEvent('flowbilling:paid', src, bill.id, total, method == 'cash' and 'cash' or 'bank')
     sendData(src)
+end)
+
+---------------------------------------------------------------- enseñar un recibo a otro jugador
+RegisterNetEvent('flowbilling:show', function(id, target)
+    local src = source
+    local p = FW.getPlayer(src)
+    local bill = DB.get(tonumber(id) or -1)
+    target = tonumber(target)
+    if not p or not bill or (bill.receiver ~= p.identifier and bill.issuer ~= p.identifier) then return end
+    if not target or target == src or not FW.getPlayer(target) or distance(src, target) > 6.0 then
+        return notify(src, 'No hay nadie cerca para enseñarle el recibo', 'error')
+    end
+    if bill.status == 'unpaid' then bill.fee = lateFee(bill) end
+    local cfg = bill.job == PERSONAL and Config.Universal or Config.Jobs[bill.job] or {}
+    TriggerClientEvent('flowbilling:viewReceipt', target, bill, {
+        label = cfg.label or bill.jobLabel, company = cfg.company, color = cfg.color, icon = cfg.icon
+    }, p.name, os.time(), Config.Currency)
+    notify(src, 'Le enseñaste el recibo a ' .. (FW.getPlayer(target).name or 'un jugador'), 'success')
 end)
 
 ---------------------------------------------------------------- anular (jefes)

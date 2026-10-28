@@ -87,6 +87,17 @@
     </div>
   </div>
 
+  <!-- pago aprobado -->
+  <div class="hidden" id="paidOverlay">
+    <div class="pobox">
+      <svg class="pocheck" viewBox="0 0 52 52"><circle cx="26" cy="26" r="23"/><path d="M15 27l7 7 15-16"/></svg>
+      <small>PAGO APROBADO</small>
+      <b id="poAmount">$0</b>
+      <span id="poMethod">Transferencia bancaria</span>
+      <em id="poTx">FB-000000-0000</em>
+    </div>
+  </div>
+
   <!-- confirmar pago -->
   <div class="modal hidden" id="payModal">
     <div class="mbox">
@@ -107,6 +118,14 @@
   <b id="popReason">—</b>
   <div class="popfoot"><span id="popFrom">—</span><strong id="popAmount">$0</strong></div>
   <small class="pophint">Abre <kbd id="popCmd">/facturas</kbd> para pagarla</small>
+</div>
+
+<!-- recibo que otro jugador te enseña -->
+<div id="viewer" class="hidden">
+  <div class="vwhead"><span class="hex mini"><svg viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></span>
+    <div><small>Te enseñan un recibo</small><b id="vwBy">—</b></div></div>
+  <div id="vwBody"></div>
+  <div class="vwbar"><i></i></div>
 </div>
 
 <div id="toasts"></div>

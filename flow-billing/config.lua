@@ -27,7 +27,7 @@ Config.LateFee = {
 -- Cualquiera puede mandar una factura a otro jugador sin importar su trabajo. El dinero va 100% a quien la emite.
 Config.Universal = {
     enabled = true,
-    label = 'Personal', color = '#A78BFA', icon = 'user',
+    label = 'Personal', company = 'Factura entre ciudadanos', color = '#A78BFA', icon = 'user',
     allowCustom = true,
     maxAmount = 50000,
     presets = {
@@ -38,13 +38,13 @@ Config.Universal = {
 }
 
 -- ===================== trabajos que pueden facturar =====================
--- label: nombre que aparece · color: color de la etiqueta · commission: % para quien factura (el resto va a la empresa)
+-- label: nombre corto · company: nombre completo en el recibo · color: color de la etiqueta · commission: % para quien factura (el resto va a la empresa)
 -- society: cuenta de la empresa que recibe el dinero · bossGrade: desde que rango ve la pestaña "Empresa"
 -- minGrade: rango minimo para poder emitir facturas oficiales del trabajo
 -- presets: conceptos rapidos (el empleado tambien puede escribir uno propio si allowCustom = true)
 Config.Jobs = {
     police = {
-        label = 'LSPD', color = '#3B82F6', icon = 'shield', commission = 10, society = 'police', minGrade = 1, bossGrade = 4, allowCustom = true,
+        label = 'LSPD', company = 'Los Santos Police Department', color = '#3B82F6', icon = 'shield', commission = 10, society = 'police', minGrade = 1, bossGrade = 4, allowCustom = true,
         presets = {
             { label = 'Exceso de velocidad', amount = 750 },
             { label = 'Conducción temeraria', amount = 1500 },
@@ -57,7 +57,7 @@ Config.Jobs = {
         }
     },
     ambulance = {
-        label = 'EMS', color = '#FF3B5C', icon = 'medic', commission = 15, society = 'ambulance', minGrade = 0, bossGrade = 4, allowCustom = true,
+        label = 'EMS', company = 'Pillbox Medical Center', color = '#FF3B5C', icon = 'medic', commission = 15, society = 'ambulance', minGrade = 0, bossGrade = 4, allowCustom = true,
         presets = {
             { label = 'Atención médica', amount = 500 },
             { label = 'Reanimación', amount = 1200 },
@@ -67,7 +67,7 @@ Config.Jobs = {
         }
     },
     mechanic = {
-        label = 'Mecánico', color = '#FF8A1F', icon = 'wrench', commission = 20, society = 'mechanic', minGrade = 0, bossGrade = 4, allowCustom = true,
+        label = 'Mecánico', company = 'Los Santos Customs', color = '#FF8A1F', icon = 'wrench', commission = 20, society = 'mechanic', minGrade = 0, bossGrade = 4, allowCustom = true,
         presets = {
             { label = 'Reparación de motor', amount = 1500 },
             { label = 'Reparación de carrocería', amount = 1000 },
@@ -77,7 +77,7 @@ Config.Jobs = {
         }
     },
     taxi = {
-        label = 'Taxi', color = '#FFD23F', icon = 'car', commission = 30, society = 'taxi', minGrade = 0, bossGrade = 4, allowCustom = true,
+        label = 'Taxi', company = 'Downtown Cab Co.', color = '#FFD23F', icon = 'car', commission = 30, society = 'taxi', minGrade = 0, bossGrade = 4, allowCustom = true,
         presets = {
             { label = 'Viaje corto', amount = 150 },
             { label = 'Viaje largo', amount = 450 },

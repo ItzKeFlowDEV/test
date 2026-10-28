@@ -16,6 +16,9 @@ Guarda en **MySQL** (oxmysql, crea las tablas solo) o, si no tienes oxmysql, en 
   Si no hay fondos, suma un **recargo por hora** (`Config.LateFee.percentPerHour`, con tope `maxPercent`) hasta que se pague.
 - **Empresa**: total facturado, cobrado, pendiente, buscador, filtros y **anular** facturas pendientes.
 - Aviso en pantalla cuando te llega una factura nueva.
+- **Recibo profesional**: empresa con nombre completo (`company`), Nº, emisión/vencimiento/estado, emisor y cliente, tabla de conceptos con recargo, subtotal y total, cuenta atrás en vivo hasta el vencimiento, código QR, código de barras y Nº de transacción, sello animado y marca de agua.
+- **Pago aprobado**: animación con el número de transacción al pagar.
+- **Enseñar recibo**: botón para mostrar el recibo al jugador más cercano (le aparece unos segundos en pantalla, sin quitarle el control). Sirve como comprobante de pago.
 
 ## Cuenta de la empresa
 Detecta `esx_addonaccount`, `qb-banking`, `qb-management` y `Renewed-Banking`. Si usas otro banco, define `Config.AddSocietyMoney = function(society, amount) ... end`.

@@ -31,9 +31,31 @@ RegisterNetEvent('flowbilling:received', function(bill)
     if open then TriggerServerEvent('flowbilling:open') end
 end)
 
-RegisterNetEvent('flowbilling:paid', function(id)
+RegisterNetEvent('flowbilling:paid', function(id, total, method)
     PlaySoundFrontend(-1, 'PURCHASE', 'HUD_LIQUOR_STORE_SOUNDSET', true)
-    SendNUIMessage({ action = 'paid', id = id })
+    SendNUIMessage({ action = 'paid', id = id, total = total, method = method })
+end)
+
+-- otro jugador te enseña un recibo (se ve unos segundos, sin quitarte el control)
+RegisterNetEvent('flowbilling:viewReceipt', function(bill, job, shownBy, serverNow, currency)
+    PlaySoundFrontend(-1, 'Text_Arrive_Tone', 'Phone_SoundSet_Default', true)
+    SendNUIMessage({ action = 'viewReceipt', bill = bill, job = job, shownBy = shownBy, serverNow = serverNow, currency = currency })
+end)
+
+RegisterNUICallback('show', function(d, cb)
+    cb('ok')
+    local me = PlayerPedId()
+    local pos = GetEntityCoords(me)
+    local best, bestDist = nil, 4.0
+    for _, pid in ipairs(GetActivePlayers()) do
+        local ped = GetPlayerPed(pid)
+        if ped ~= me then
+            local dist = #(GetEntityCoords(ped) - pos)
+            if dist < bestDist then best, bestDist = GetPlayerServerId(pid), dist end
+        end
+    end
+    if not best then return notify('No hay nadie cerca para enseñarle el recibo', 'error') end
+    TriggerServerEvent('flowbilling:show', d.id, best)
 end)
 
 RegisterNetEvent('flowbilling:nearby', function(list)
