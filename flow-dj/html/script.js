@@ -267,14 +267,14 @@ function drawWave(prog) {
   for (let i = 0; i < n; i++) {
     const x = i * bw, h = Math.max(2, w[i] * (H - 6));
     const played = x < playedX;
-    wcx.fillStyle = played ? (i % 2 ? '#1ad5d9' : '#ff2d78') : (i % 2 ? '#3a4560' : '#2c3550');
+    wcx.fillStyle = played ? (i % 2 ? '#ff9ccd' : '#ff2e93') : (i % 2 ? '#3a2f39' : '#2c232c');
     wcx.fillRect(x, (H - h) / 2, Math.max(1, bw - 1), h);
   }
   // marcas de hot cue
   (cues[cur.url] || []).forEach((v, i) => {
     if (v == null) return;
     const s = sources[djId], d = s ? durTime(s) : 0; if (!d) return;
-    wcx.fillStyle = ['#ff2d78', '#1ad5d9', '#ffb020', '#8b5cff'][i];
+    wcx.fillStyle = ['#ff2e93', '#ffc2e0', '#ffffff', '#c13dff'][i];
     wcx.fillRect((v / d) * W - 1, 0, 3, H);
   });
 }

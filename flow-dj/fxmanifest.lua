@@ -17,5 +17,6 @@ files {
     'html/index.html',
     'html/style.css',
     'html/script.js',
-    'html/fonts/*.woff2'
+    'html/fonts/*.woff2',
+    'html/img/*.png'
 }

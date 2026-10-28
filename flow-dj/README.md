@@ -1,5 +1,7 @@
 # flow-dj
 
+> Tema **MUSA**: rosa y blanco del logo sobre negro, fuentes Saira Condensed + Inter (incluidas en `html/fonts`), logo en `html/img/musa-logo.png` (cámbialo por el tuyo si quieres).
+
 Cabinas de DJ con música de **YouTube** o **MP3/WAV**, audio 3D por distancia y paneles con el diseño FlowDev. Standalone (ESX / QBCore / QBox solo para cabinas por trabajo).
 
 ## Instalación
