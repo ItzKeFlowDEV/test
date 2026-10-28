@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Flow Reports</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ===================== JUGADOR: NUEVO REPORTE ===================== -->
+<section id="pForm" class="panel center hidden">
+  <header class="phead">
+    <div class="hex"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/><path d="M12 8v3.5M12 13.8h.01"/></svg></div>
+    <div class="ptitle"><b>NUEVO REPORTE</b><small>Cuéntanos qué pasó y un administrador te atenderá</small></div>
+    <button class="xbtn" data-close><svg viewBox="0 0 24 24"><path d="M7 7l10 10M17 7L7 17"/></svg></button>
+  </header>
+  <div class="sectlbl"><span>1 · Categoría</span></div>
+  <div class="cats" id="cats"></div>
+  <div class="sectlbl"><span>2 · Describe el problema</span><em id="charCount">0 / 500</em></div>
+  <div class="tile area"><textarea id="msg" placeholder="Ej: Me caí debajo del mapa en Legion Square y perdí mi vehículo..."></textarea></div>
+  <div class="formfoot">
+    <span class="hint2"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>Sé claro: quién, qué y dónde</span>
+    <button class="primary" id="btnSend"><svg viewBox="0 0 24 24"><path d="M4 12l16-8-6 16-3-7z"/></svg>Enviar reporte</button>
+  </div>
+</section>
+
+<!-- ===================== JUGADOR: MI REPORTE ===================== -->
+<section id="pReport" class="panel center hidden">
+  <header class="phead">
+    <div class="hex"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/><path d="M12 8v3.5M12 13.8h.01"/></svg></div>
+    <div class="ptitle"><b>MI REPORTE <span id="prId">#0</span></b><small id="prCat">—</small></div>
+    <button class="xbtn" data-close><svg viewBox="0 0 24 24"><path d="M7 7l10 10M17 7L7 17"/></svg></button>
+  </header>
+  <div class="statuscard" id="prStatus">
+    <div class="sring"><svg viewBox="0 0 36 36"><circle cx="18" cy="18" r="15"/><circle class="arc" cx="18" cy="18" r="15"/></svg><b id="prPos">1</b></div>
+    <div class="stext"><b id="prState">En cola</b><small id="prSub">Esperando a un administrador</small></div>
+    <span class="timer" id="prTimer">00:00</span>
+  </div>
+  <div class="chat" id="prChat"></div>
+  <div class="composer">
+    <div class="tile field"><input id="prInput" maxlength="300" placeholder="Escribe un mensaje al administrador..."></div>
+    <button class="primary sq" id="prSend"><svg viewBox="0 0 24 24"><path d="M4 12l16-8-6 16-3-7z"/></svg></button>
+  </div>
+  <div class="formfoot">
+    <button class="danger" id="prCancel"><svg viewBox="0 0 24 24"><path d="M7 7l10 10M17 7L7 17"/></svg>Cancelar reporte</button>
+    <span class="hint2"><kbd>ESC</kbd> cerrar · seguirás en la cola</span>
+  </div>
+</section>
+
+<!-- ===================== JUGADOR: BARRA DE ESPERA ===================== -->
+<div id="waitbar" class="hidden">
+  <div class="wtop">
+    <div class="hex mini"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/><path d="M12 8v3.5M12 13.8h.01"/></svg></div>
+    <div class="wtext"><b id="wTitle">Esperando por respuesta de administrador</b><small id="wSub">Posición #1 en la cola · /reportar para ver</small></div>
+    <span class="timer" id="wTimer">00:00</span>
+  </div>
+  <div class="wbar"><i></i></div>
+</div>
+
+<!-- ===================== ADMIN ===================== -->
+<section id="admin" class="panel wide hidden">
+  <header class="phead">
+    <div class="hex"><svg viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6z"/><path d="M9 12l2 2 4-4"/></svg></div>
+    <div class="ptitle"><b>REPORTES</b><small id="aSub">0 abiertos · 0 atendiendo</small></div>
+    <div class="tabs" id="tabs">
+      <button data-tab="all" class="on">Todos</button><button data-tab="open">En cola</button><button data-tab="mine">Míos</button>
+    </div>
+    <button class="xbtn" data-close><svg viewBox="0 0 24 24"><path d="M7 7l10 10M17 7L7 17"/></svg></button>
+  </header>
+  <div class="acols">
+    <div class="acol">
+      <div class="tile search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg><input id="aSearch" placeholder="Buscar por ID, nombre o texto..."></div>
+      <div class="rlist" id="rList"></div>
+    </div>
+    <div class="acol main">
+      <div class="empty big" id="aEmpty">
+        <div class="hex ghosthex"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/><path d="M12 8v3.5M12 13.8h.01"/></svg></div>
+        <b>Selecciona un reporte</b><small>Reclámalo para atenderlo y responder al jugador</small>
+      </div>
+      <div id="aDetail" class="hidden">
+        <div class="dhead">
+          <span class="idpill big" id="dId">#0</span>
+          <div class="dinfo"><b id="dName">—</b><small id="dMeta">—</small></div>
+          <span class="badge" id="dBadge">EN COLA</span>
+          <button class="primary" id="dClaim"><svg viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></svg>Reclamar</button>
+          <button class="ghostbtn tile" id="dUnclaim">Liberar</button>
+          <button class="danger" id="dClose"><svg viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></svg>Cerrar</button>
+        </div>
+        <div class="actions" id="actions">
+          <button data-act="goto"><svg viewBox="0 0 24 24"><path d="M12 21s-6-5.6-6-11a6 6 0 0 1 12 0c0 5.4-6 11-6 11z"/><circle cx="12" cy="10" r="2.2"/></svg>Ir</button>
+          <button data-act="bring"><svg viewBox="0 0 24 24"><path d="M12 4v12M6 10l6 6 6-6M5 20h14"/></svg>Traer</button>
+          <button data-act="return"><svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/></svg>Devolver</button>
+          <button data-act="revive"><svg viewBox="0 0 24 24"><path d="M3 12h4l2-5 4 10 2-5h6"/></svg>Revivir</button>
+          <button data-act="heal"><svg viewBox="0 0 24 24"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/><path d="M12 9v5M9.5 11.5h5"/></svg>Curar</button>
+          <button data-act="skin"><svg viewBox="0 0 24 24"><path d="M8 4l4 2 4-2 4 3-2 4-2-1v10H8V10l-2 1-2-4z"/></svg>Skin</button>
+          <button data-act="scale"><svg viewBox="0 0 24 24"><path d="M4 20L20 4M14 4h6v6M10 20H4v-6"/></svg>Escala</button>
+          <button data-act="freeze"><svg viewBox="0 0 24 24"><path d="M12 2v20M4 6l16 12M20 6L4 18"/></svg>Congelar</button>
+          <button data-act="kick" class="red"><svg viewBox="0 0 24 24"><path d="M15 4h4v16h-4M10 16l-4-4 4-4M6 12h10"/></svg>Expulsar</button>
+        </div>
+        <div class="chat" id="aChat"></div>
+        <div class="composer">
+          <div class="tile field"><input id="aInput" maxlength="300" placeholder="Responder al jugador..."></div>
+          <button class="primary" id="aSend"><svg viewBox="0 0 24 24"><path d="M4 12l16-8-6 16-3-7z"/></svg>Responder</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ventana: escala -->
+  <div class="modal hidden" id="scaleModal">
+    <div class="mbox">
+      <div class="mhead"><b>Escala del jugador</b><small>Visual: todos lo verán más grande o más pequeño</small></div>
+      <div class="scaleview"><span class="sped" id="scalePed"></span><em id="scaleVal">1.00x</em></div>
+      <input type="range" id="scaleRange" min="0.5" max="1.5" step="0.05" value="1">
+      <div class="presets"><button data-s="0.6">Mini</button><button data-s="0.8">Bajo</button><button data-s="1">Normal</button><button data-s="1.2">Alto</button><button data-s="1.4">Gigante</button></div>
+      <div class="mfoot"><button class="ghostbtn tile" data-mclose>Cancelar</button><button class="primary" id="scaleApply">Aplicar</button></div>
+    </div>
+  </div>
+
+  <!-- ventana: expulsar -->
+  <div class="modal hidden" id="kickModal">
+    <div class="mbox">
+      <div class="mhead"><b>Expulsar a <span id="kickName">—</span></b><small>Se cerrará el reporte y saldrá del servidor</small></div>
+      <div class="tile field"><input id="kickReason" maxlength="120" placeholder="Motivo de la expulsión..."></div>
+      <div class="mfoot"><button class="ghostbtn tile" data-mclose>Cancelar</button><button class="danger solid" id="kickApply">Expulsar</button></div>
+    </div>
+  </div>
+</section>
+
+<!-- contador de reportes para admins (fuera del panel) -->
+<div id="adminPill" class="hidden"><i></i><span id="adminPillText">0 reportes abiertos</span><small>/reportes</small></div>
+
+<div id="toasts"></div>
+<script src="script.js"></script>
+</body>
+</html>
