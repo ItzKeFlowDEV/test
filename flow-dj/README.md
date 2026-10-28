@@ -24,6 +24,15 @@ Panel estilo **CDJ + mezclador DJM**:
 - **Cola** (YouTube o MP3): añadir, poner ya, subir, quitar, vaciar, e **Historial**.
 - Arriba: **oyentes** dentro del radio, **alcance** en metros y luz **ON AIR**.
 
+## FX, micro y mezcla (pestaña “FX & Mezcla” del panel)
+- **Efectos de pista**: el admin pone hasta 12 **puntos de efectos** por cabina (“Añadir punto aquí” en `/djadmin`, con botón para probar el fuego).
+  El DJ dispara **Fuego**, **Humo** o **Confeti** en todos los puntos a la vez. Las partículas se cambian en `Config.Effects`.
+- **Sonidos de DJ**: Bocina, Sirena, Rewind, Boom, Scratch y Aplausos. Se generan en el juego (sin archivos) y los oye toda la cabina con su distancia.
+- **Micro del DJ**: botón **MIC** en el mezclador. Mientras está activo, la voz del DJ llega a todo el radio de la cabina (pma-voice o voz nativa)
+  y **la música baja sola** para todos mientras habla (`Config.MicDuck`). Con el panel abierto solo funciona la tecla de voz; también se puede cerrar el panel y seguir hablando. Se apaga solo si el DJ se aleja.
+- **Transiciones**: **Corte**, **Fade** o **Filtro** (la que sale se va quedando sin graves mientras entra la nueva), de 3, 6 o 10 s.
+  **Auto-mix** empalma la siguiente de la cola antes de que termine la actual.
+
 ## Cómo se escucha
 - Todos los jugadores dentro del radio la escuchan sincronizada.
 - Volumen completo cerca de la cabina y se va apagando hasta el borde del radio. Se oye por el lado donde está la cabina y,

@@ -4,6 +4,7 @@ local view = nil           -- 'dj' | 'admin' | nil
 local openBooth = nil
 local editing = nil        -- cabina que el admin esta editando (para dibujar el radio)
 local blips = {}
+local micOn, micBooth = false, nil
 
 local function notify(msg, kind) SendNUIMessage({ action = 'notify', msg = msg, kind = kind }) end
 RegisterNetEvent('flowdj:notify', notify)
@@ -47,10 +48,110 @@ CreateThread(function()
     TriggerServerEvent('flowdj:hello')
 end)
 
+---------------------------------------------------------------- micro del DJ
+local talking = false
+local prevProximity = nil
+function setMic(on)
+    if on == micOn then return end
+    if on then
+        local b
+        for _, x in ipairs(booths) do if x.id == openBooth then b = x end end
+        if not b then return end
+        micOn, micBooth = true, b
+        if GetResourceState('pma-voice') == 'started' then
+            pcall(function() exports['pma-voice']:overrideProximityRange(b.radius, true) end)
+        else
+            prevProximity = NetworkGetTalkerProximity()
+            NetworkSetTalkerProximity(b.radius)
+        end
+        -- con el panel abierto dejamos pasar solo la tecla de voz
+        if view then SetNuiFocusKeepInput(true) end
+    else
+        micOn = false
+        if GetResourceState('pma-voice') == 'started' then
+            pcall(function() exports['pma-voice']:clearProximityOverride() end)
+        elseif prevProximity then
+            NetworkSetTalkerProximity(prevProximity)
+        end
+        SetNuiFocusKeepInput(false)
+        if talking and micBooth then TriggerServerEvent('flowdj:duck', micBooth.id, false) end
+        talking, micBooth = false, nil
+    end
+    SendNUIMessage({ action = 'mic', on = micOn, booth = micBooth and micBooth.name })
+end
+
+CreateThread(function()
+    while true do
+        if micOn and micBooth then
+            -- con el panel abierto y el micro activo: bloqueamos todo menos hablar
+            if view then
+                DisableAllControlActions(0)
+                EnableControlAction(0, 249, true)   -- push to talk
+            end
+            local now = NetworkIsPlayerTalking(PlayerId())
+            if now ~= talking then
+                talking = now
+                TriggerServerEvent('flowdj:duck', micBooth.id, talking)
+                SendNUIMessage({ action = 'micTalking', on = talking })
+            end
+            local c = micBooth.coords
+            if #(GetEntityCoords(PlayerPedId()) - vector3(c.x, c.y, c.z)) > (micBooth.interact or 2.5) + Config.MicMaxDistance then
+                setMic(false)
+            end
+            Wait(view and 0 or 120)
+        else
+            Wait(400)
+        end
+    end
+end)
+
+---------------------------------------------------------------- efectos de pista y sonidos
+local function loadAsset(asset)
+    if HasNamedPtfxAssetLoaded(asset) then return true end
+    RequestNamedPtfxAsset(asset)
+    local t = GetGameTimer() + 3000
+    while not HasNamedPtfxAssetLoaded(asset) and GetGameTimer() < t do Wait(0) end
+    return HasNamedPtfxAssetLoaded(asset)
+end
+
+RegisterNetEvent('flowdj:fx', function(id, kind)
+    local b
+    for _, x in ipairs(booths) do if x.id == id then b = x end end
+    local cfg = Config.Effects[kind]
+    if not b or not cfg or not b.fx then return end
+    local c = b.coords
+    if #(GetEntityCoords(PlayerPedId()) - vector3(c.x, c.y, c.z)) > b.radius + 60.0 then return end
+    if not loadAsset(cfg.asset) then return end
+    SendNUIMessage({ action = 'sfx', id = id, name = kind == 'fire' and 'flame' or kind == 'confetti' and 'pop' or 'hiss' })
+    local handles = {}
+    for _, p in ipairs(b.fx) do
+        UseParticleFxAssetNextCall(cfg.asset)
+        if cfg.looped then
+            handles[#handles + 1] = StartParticleFxLoopedAtCoord(cfg.name, p.x, p.y, p.z + (cfg.zOff or 0.0), 0.0, 0.0, 0.0, cfg.scale, false, false, false, false)
+        else
+            StartParticleFxNonLoopedAtCoord(cfg.name, p.x, p.y, p.z + (cfg.zOff or 0.0), 0.0, 0.0, 0.0, cfg.scale, false, false, false)
+        end
+    end
+    if #handles > 0 then
+        SetTimeout(cfg.duration or 1500, function()
+            for _, h in ipairs(handles) do StopParticleFxLooped(h, false) end
+        end)
+    end
+end)
+
+RegisterNetEvent('flowdj:sfx', function(id, name)
+    SendNUIMessage({ action = 'sfx', id = id, name = name })
+end)
+
+RegisterNetEvent('flowdj:duck', function(id, on)
+    SendNUIMessage({ action = 'duck', id = id, on = on, level = Config.MicDuck })
+end)
+
 ---------------------------------------------------------------- abrir / cerrar
 local function close()
     view, openBooth, editing = nil, nil, nil
     SetNuiFocus(false, false)
+    SetNuiFocusKeepInput(false)
     SendNUIMessage({ action = 'close' })
 end
 
@@ -60,7 +161,11 @@ RegisterNetEvent('flowdj:openDJ', function(id, st, serverNow, myName)
     SetNuiFocus(true, true)
     local b
     for _, x in ipairs(booths) do if x.id == id then b = x end end
-    SendNUIMessage({ action = 'openDJ', id = id, booth = b, state = st, serverNow = serverNow, me = myName })
+    local fx = {}
+    for k, v in pairs(Config.Effects) do fx[#fx + 1] = { id = k, label = v.label } end
+    table.sort(fx, function(a, b2) return a.id > b2.id end)
+    SendNUIMessage({ action = 'openDJ', id = id, booth = b, state = st, serverNow = serverNow, me = myName,
+        effects = fx, sounds = Config.Sounds, mic = micOn })
 end)
 
 RegisterNetEvent('flowdj:openAdmin', function(list, sts, serverNow, defaults, maxRadius)
@@ -76,6 +181,7 @@ RegisterNetEvent('flowdj:adminSaved', function(id) SendNUIMessage({ action = 'ad
 
 ---------------------------------------------------------------- NUI
 RegisterNUICallback('close', function(_, cb) close() cb('ok') end)
+RegisterNUICallback('mic', function(_, cb) cb('ok') setMic(not micOn) end)
 RegisterNUICallback('add', function(d, cb) TriggerServerEvent('flowdj:add', openBooth, d.url, d.now) cb('ok') end)
 RegisterNUICallback('control', function(d, cb) TriggerServerEvent('flowdj:control', openBooth, d.action, d.value) cb('ok') end)
 RegisterNUICallback('ended', function(d, cb) TriggerServerEvent('flowdj:ended', d.id, d.key) cb('ok') end)
@@ -84,6 +190,22 @@ RegisterNUICallback('saveBooth', function(d, cb) TriggerServerEvent('flowdj:save
 RegisterNUICallback('deleteBooth', function(d, cb) TriggerServerEvent('flowdj:deleteBooth', d.id) cb('ok') end)
 RegisterNUICallback('adminStop', function(d, cb) TriggerServerEvent('flowdj:adminStop', d.id) cb('ok') end)
 RegisterNUICallback('editing', function(d, cb) editing = d and d.coords and d or nil cb('ok') end)
+RegisterNUICallback('testFx', function(d, cb)
+    cb('ok')
+    -- vista previa del admin en los puntos que esta editando
+    if not editing or not editing.fx then return end
+    local cfg = Config.Effects[d.kind or 'fire']
+    if not cfg or not loadAsset(cfg.asset) then return end
+    for _, p in ipairs(editing.fx) do
+        UseParticleFxAssetNextCall(cfg.asset)
+        if cfg.looped then
+            local h = StartParticleFxLoopedAtCoord(cfg.name, p.x, p.y, p.z + (cfg.zOff or 0.0), 0.0, 0.0, 0.0, cfg.scale, false, false, false, false)
+            SetTimeout(cfg.duration or 1500, function() StopParticleFxLooped(h, false) end)
+        else
+            StartParticleFxNonLoopedAtCoord(cfg.name, p.x, p.y, p.z + (cfg.zOff or 0.0), 0.0, 0.0, 0.0, cfg.scale, false, false, false)
+        end
+    end
+end)
 RegisterNUICallback('here', function(_, cb)
     local p = GetEntityCoords(PlayerPedId())
     cb({ x = p.x, y = p.y, z = p.z - 1.0 })
@@ -126,7 +248,11 @@ CreateThread(function()
             sleep = 0
             local r = (tonumber(editing.radius) or 40.0) * 2.0
             DrawMarker(1, editing.coords.x, editing.coords.y, editing.coords.z - 1.0, 0, 0, 0, 0, 0, 0, r, r, 3.0, 26, 213, 217, 45, false, false, 2, false, nil, nil, false)
-            DrawMarker(27, editing.coords.x, editing.coords.y, editing.coords.z + 0.03, 0, 0, 0, 0, 0, 0, 1.6, 1.6, 1.0, 255, 45, 120, 200, false, false, 2, true, nil, nil, false)
+            DrawMarker(27, editing.coords.x, editing.coords.y, editing.coords.z + 0.03, 0, 0, 0, 0, 0, 0, 1.6, 1.6, 1.0, 255, 46, 147, 200, false, false, 2, true, nil, nil, false)
+            for i, p in ipairs(editing.fx or {}) do
+                DrawMarker(28, p.x, p.y, p.z + 0.3, 0, 0, 0, 0, 0, 0, 0.35, 0.35, 0.35, 255, 194, 224, 200, false, false, 2, false, nil, nil, false)
+                draw3D(p.x, p.y, p.z + 0.8, ('FX %d'):format(i))
+            end
         end
         if near then
             if not prompt then prompt = true SendNUIMessage({ action = 'prompt', show = true, name = near.name }) end
@@ -178,5 +304,6 @@ end)
 AddEventHandler('onResourceStop', function(res)
     if res ~= GetCurrentResourceName() then return end
     if view then SetNuiFocus(false, false) end
+    if micOn then setMic(false) end
     for _, b in pairs(blips) do RemoveBlip(b) end
 end)

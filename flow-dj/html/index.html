@@ -80,6 +80,9 @@
         <div class="vu" id="vuR"></div>
       </div>
       <div class="chlabel"><span>MASTER</span><b id="volVal">80%</b></div>
+      <button class="micbtn" id="bMic" title="Micro del DJ: habla con tu tecla de voz y se oye en toda la cabina">
+        <svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg><span>MIC</span>
+      </button>
     </div>
 
     <!-- ============ COLA ============ -->
@@ -91,8 +94,26 @@
           <button class="ghostbtn tile" id="bNow"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>Poner ya</button>
         </div>
       </div>
-      <div class="qtabs"><button data-q="queue" class="on">Cola <em id="qCount">0</em></button><button data-q="history">Historial</button><button class="clear" id="bClear">Vaciar</button></div>
+      <div class="qtabs"><button data-q="queue" class="on">Cola <em id="qCount">0</em></button><button data-q="history">Historial</button><button data-q="fx">FX &amp; Mezcla</button><button class="clear" id="bClear">Vaciar</button></div>
       <div class="qlist" id="qList"></div>
+      <div class="fxpanel hidden" id="fxPanel">
+        <div class="fxsec">
+          <div class="fxhead"><b>Efectos de pista</b><small id="fxCount">0 puntos</small></div>
+          <div class="fxbtns" id="fxBtns"></div>
+        </div>
+        <div class="fxsec">
+          <div class="fxhead"><b>Sonidos</b><small>Los oye toda la cabina</small></div>
+          <div class="sfxgrid" id="sfxGrid"></div>
+        </div>
+        <div class="fxsec">
+          <div class="fxhead"><b>Transición</b><small id="mixInfo">Al cambiar de canción</small></div>
+          <div class="seg" id="mixMode"><button data-m="cut">Corte</button><button data-m="fade" class="on">Fade</button><button data-m="filter">Filtro</button></div>
+          <div class="mixrow">
+            <div class="seg small" id="mixSecs"><button data-s="3">3 s</button><button data-s="6" class="on">6 s</button><button data-s="10">10 s</button></div>
+            <label class="toggle"><input type="checkbox" id="mixAuto" checked><span></span>Auto-mix</label>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </section>
@@ -128,6 +149,14 @@
             <div class="seg" id="fAccess"><button data-a="all" class="on">Todos</button><button data-a="job">Un trabajo</button><button data-a="admin">Solo admins</button></div>
             <div class="tile field hidden" id="jobField"><input id="fJob" maxlength="30" placeholder="Nombre del trabajo (ej. vanilla, bahamas)"></div>
             <label class="toggle"><input type="checkbox" id="fBlip" checked><span></span>Mostrar en el mapa</label>
+            <div class="fxedit">
+              <div class="fxhead"><b>Puntos de efectos</b><small>Fuego, humo y confeti salen aquí</small></div>
+              <div class="fxpts" id="fxPts"></div>
+              <div class="fxacts">
+                <button class="ghostbtn" id="bFxAdd"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Añadir punto aquí</button>
+                <button class="ghostbtn" id="bFxTest"><svg viewBox="0 0 24 24"><path d="M12 3c1 3 4 4.5 4 8.5a4 4 0 0 1-8 0c0-2 1-3 1-3 .5 1.5 1.5 2 2 2 0-3-1-5 1-7.5z"/></svg>Probar fuego</button>
+              </div>
+            </div>
           </div>
           <div class="edright">
             <div class="radar" id="radar">
@@ -162,6 +191,8 @@
   <div class="ncside"><div class="ncbars"><i></i><i></i><i></i><i></i></div><small id="ncDist">0 m</small></div>
   <span id="ncBooth" hidden></span>
 </div>
+
+<div id="micpill" class="hidden"><span class="mdot"></span><div><b>MIC DJ</b><small id="micText">Habla con tu tecla de voz</small></div></div>
 
 <div id="ytHost"></div>
 <div id="toasts"></div>

@@ -38,3 +38,24 @@ Config.GetJob = function(src)
         return x and x.job.name
     end
 end
+
+-- ===================== efectos de pista (puntos que pone el admin en cada cabina) =====================
+-- asset/name: particulas de GTA. Si alguna no te gusta, cambiala aqui.
+Config.MaxFxPoints = 12
+Config.Effects = {
+    fire     = { label = 'Fuego',   asset = 'core', name = 'ent_sht_flame',          looped = true,  scale = 2.6, duration = 1500, zOff = 0.0 },
+    smoke    = { label = 'Humo',    asset = 'core', name = 'exp_grd_grenade_smoke',  looped = true,  scale = 0.9, duration = 4500, zOff = 0.0 },
+    confetti = { label = 'Confeti', asset = 'scr_xs_celebration', name = 'scr_xs_confetti_burst', looped = false, scale = 1.5, zOff = 1.2 },
+}
+Config.FxCooldown = 1.2       -- segundos entre disparos del mismo efecto
+
+-- ===================== sonidos de DJ (se generan en el juego, no necesitan archivos) =====================
+Config.Sounds = { 'airhorn', 'siren', 'rewind', 'boom', 'scratch', 'applause' }
+
+-- ===================== micro del DJ =====================
+-- Con pma-voice usa overrideProximityRange; sin pma-voice usa la proximidad nativa de FiveM.
+Config.MicDuck = 0.22         -- volumen de la musica mientras el DJ habla (0.22 = baja al 22%)
+Config.MicMaxDistance = 15.0  -- si el DJ se aleja mas de esto de la cabina, el micro se apaga solo
+
+-- ===================== transiciones =====================
+Config.Transition = { mode = 'fade', secs = 6, auto = true }   -- mode: 'cut' | 'fade' | 'filter'

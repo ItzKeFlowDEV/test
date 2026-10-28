@@ -70,7 +70,8 @@ local function validUrl(url)
 end
 
 local function state(id)
-    if not states[id] then states[id] = { queue = {}, history = {}, current = nil, djVolume = 0.8, dj = nil, eq = { low = 0.0, mid = 0.0, high = 0.0, filter = 0.0 } } end
+    if not states[id] then states[id] = { queue = {}, history = {}, current = nil, djVolume = 0.8, dj = nil, eq = { low = 0.0, mid = 0.0, high = 0.0, filter = 0.0 },
+        mix = { mode = Config.Transition.mode, secs = Config.Transition.secs, auto = Config.Transition.auto } } end
     return states[id]
 end
 
@@ -207,6 +208,27 @@ RegisterNetEvent('flowdj:control', function(id, action, value)
     elseif action == 'eq' and type(value) == 'table' then
         local function n(v) return math.max(-1.0, math.min(1.0, tonumber(v) or 0.0)) end
         st.eq = { low = n(value.low), mid = n(value.mid), high = n(value.high), filter = n(value.filter) }
+    elseif action == 'transition' and type(value) == 'table' then
+        local mode = (value.mode == 'cut' or value.mode == 'filter') and value.mode or 'fade'
+        local secs = math.max(1, math.min(12, math.floor(tonumber(value.secs) or 6)))
+        st.mix = { mode = mode, secs = secs, auto = value.auto == true }
+    elseif action == 'fx' then
+        local fx = Config.Effects[value]
+        if not fx or not b.fx or #b.fx == 0 then return notify(src, 'Esta cabina no tiene puntos de efectos', 'error') end
+        st.fxCd = st.fxCd or {}
+        if st.fxCd[value] and GetGameTimer() - st.fxCd[value] < Config.FxCooldown * 1000 then return end
+        st.fxCd[value] = GetGameTimer()
+        TriggerClientEvent('flowdj:fx', -1, b.id, value)
+        return
+    elseif action == 'sfx' then
+        local ok = false
+        for _, n in ipairs(Config.Sounds) do if n == value then ok = true end end
+        if not ok then return end
+        st.sfxCd = st.sfxCd or 0
+        if GetGameTimer() - st.sfxCd < 350 then return end
+        st.sfxCd = GetGameTimer()
+        TriggerClientEvent('flowdj:sfx', -1, b.id, value)
+        return
     elseif action == 'remove' then
         table.remove(st.queue, tonumber(value) or 0)
     elseif action == 'playIndex' then
@@ -234,6 +256,16 @@ RegisterNetEvent('flowdj:ended', function(id, key)
     end
 end)
 
+-- el DJ esta hablando por el micro: bajar la musica a todos
+RegisterNetEvent('flowdj:duck', function(id, talking)
+    local src = source
+    local b = boothById(tonumber(id) or -1)
+    if not b or not nearBooth(src, b, Config.MicMaxDistance) then return end
+    local st = state(b.id)
+    st.duck = talking == true
+    TriggerClientEvent('flowdj:duck', -1, b.id, st.duck)
+end)
+
 ---------------------------------------------------------------- admin
 RegisterCommand(Config.AdminCommand, function(src)
     if src == 0 then return end
@@ -258,6 +290,15 @@ RegisterNetEvent('flowdj:saveBooth', function(d)
     b.access = (d.access == 'job' or d.access == 'admin') and d.access or 'all'
     b.job = type(d.job) == 'string' and d.job:lower():gsub('[^%w_]', ''):sub(1, 30) or ''
     b.blip = d.blip == true
+    b.fx = {}
+    if type(d.fx) == 'table' then
+        for _, p in ipairs(d.fx) do
+            if #b.fx >= Config.MaxFxPoints then break end
+            if type(p) == 'table' and tonumber(p.x) and tonumber(p.y) and tonumber(p.z) then
+                b.fx[#b.fx + 1] = { x = tonumber(p.x), y = tonumber(p.y), z = tonumber(p.z) }
+            end
+        end
+    end
     save()
     broadcastBooths()
     TriggerClientEvent('flowdj:adminSaved', src, b.id)

@@ -104,9 +104,16 @@ function buildYt(s, vid, pos) {
   });
 }
 
+const duck = {};          // [id] = { on, level, cur }
+function env(s) {
+  let e = 1;
+  if (s.fadeIn) { const p = (performance.now() - s.fadeIn.t0) / (s.fadeIn.secs * 1000); if (p >= 1) s.fadeIn = null; else e *= Math.sin(clamp(p) * Math.PI / 2); }
+  const d = duck[s.id]; if (d) e *= d.cur;
+  return e;
+}
 function vol(s) {
   const st = states[s.id];
-  return st ? clamp((st.djVolume ?? 0.8) * s.f) : 0;
+  return st ? clamp((st.djVolume ?? 0.8) * s.f * env(s)) : 0;
 }
 
 function apply(s) {
@@ -140,8 +147,11 @@ function sync(id) {
   const audible = s.f > 0.001 || id === djId;
   if (!audible) { if (s.key) destroy(s); return; }
   if (s.key !== cur.key) {
-    destroy(s);
+    const mix = (st && st.mix) || { mode: 'fade', secs: 6 };
+    const had = !!s.key && isPlaying(s);
+    if (had && mix.mode !== 'cut') fadeOut(s, mix); else destroy(s);
     s.key = cur.key;
+    s.fadeIn = had && mix.mode !== 'cut' ? { t0: performance.now(), secs: mix.secs } : null;
     const vid = cur.kind === 'yt' ? ytId(cur.url) : null;
     if (vid) buildYt(s, vid, wantPos(cur)); else buildFile(s, cur.url, wantPos(cur));
   }
@@ -155,6 +165,126 @@ function sync(id) {
     cur.playing ? s.el.play().catch(() => {}) : s.el.pause();
   }
   apply(s);
+}
+
+/* ---------- transiciones: la cancion que sale se apaga mientras entra la nueva ---------- */
+const fades = [];
+function isPlaying(s) {
+  if (s.kind === 'yt') return !!(s.yt && s.yt.ready && s.yt.player.getPlayerState && s.yt.player.getPlayerState() === 1);
+  return !!(s.el && !s.el.paused);
+}
+function fadeOut(s, mix) {
+  fades.push({ kind: s.kind, el: s.el, nodes: s.nodes, yt: s.yt, v0: vol(s), t0: performance.now(), secs: mix.secs, mode: mix.mode });
+  s.el = null; s.nodes = null; s.yt = null; s.key = null; s.kind = null;
+}
+function killFade(f) {
+  if (f.el) { f.el.pause(); f.el.removeAttribute('src'); }
+  if (f.yt) { try { f.yt.player && f.yt.player.destroy(); } catch (e) {} }
+}
+const autoSent = {};
+setInterval(() => {
+  const now = performance.now();
+  // envolventes: duck suave y fade-in de la nueva
+  for (const id of Object.keys(duck)) { const d = duck[id]; const target = d.on ? d.level : 1; d.cur += (target - d.cur) * 0.25; }
+  for (const id of Object.keys(sources)) { const s = sources[id]; if (s.key && (s.fadeIn || duck[id])) apply(s); }
+  // canciones saliendo
+  for (let i = fades.length - 1; i >= 0; i--) {
+    const f = fades[i], p = clamp((now - f.t0) / (f.secs * 1000));
+    const v = f.v0 * Math.cos(p * Math.PI / 2);
+    if (f.kind === 'yt') { if (f.yt && f.yt.ready) f.yt.player.setVolume(Math.round(v * 100)); }
+    else if (f.nodes) {
+      const t = AC.currentTime;
+      f.nodes.gain.gain.setTargetAtTime(v, t, 0.05);
+      if (f.mode === 'filter') f.nodes.fHigh.frequency.setTargetAtTime(10 * Math.pow(2500 / 10, p), t, 0.05);
+    } else if (f.el) f.el.volume = clamp(v);
+    if (p >= 1) { killFade(f); fades.splice(i, 1); }
+  }
+  // auto-mix: empalma la siguiente antes de que termine la actual
+  for (const id of Object.keys(states)) {
+    const st = states[id], s = sources[id], cur = st && st.current, mix = st && st.mix;
+    if (!cur || !s || !s.key || !mix || !mix.auto || mix.mode === 'cut' || !st.queue.length || !cur.playing) continue;
+    const d = durTime(s), c = curTime(s);
+    if (d > 20 && d - c <= mix.secs && autoSent[id] !== cur.key) { autoSent[id] = cur.key; post('ended', { id: Number(id), key: cur.key }); }
+  }
+}, 80);
+
+/* ---------- sonidos de DJ, generados con Web Audio (sin archivos) ---------- */
+let noiseBuf = null;
+function noise() {
+  const c = ctx();
+  if (noiseBuf) return noiseBuf;
+  noiseBuf = c.createBuffer(1, c.sampleRate * 2, c.sampleRate);
+  const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  return noiseBuf;
+}
+function sfxOut(id) {
+  const c = ctx(), s = sources[id], m = mix[id] || { f: id === djId ? 1 : 0, p: 0 }, st = states[id];
+  const g = c.createGain(), pan = c.createStereoPanner();
+  g.gain.value = clamp((m.f || 0) * ((st && st.djVolume) ?? 0.8) * 1.1);
+  pan.pan.value = clamp(m.p || 0, -1, 1);
+  g.connect(pan); pan.connect(c.destination);
+  return { c, g, t: c.currentTime, s };
+}
+function osc(o, type, f, t0, t1) { const n = o.c.createOscillator(); n.type = type; n.frequency.setValueAtTime(f, t0); n.start(t0); n.stop(t1); return n; }
+function env1(o, t0, a, peak, d) { const g = o.c.createGain(); g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(peak, t0 + a); g.gain.exponentialRampToValueAtTime(0.0001, t0 + a + d); g.connect(o.g); return g; }
+function noiseSrc(o, t0, dur) { const n = o.c.createBufferSource(); n.buffer = noise(); n.loop = true; n.start(t0); n.stop(t0 + dur); return n; }
+function bq(o, type, f, q) { const n = o.c.createBiquadFilter(); n.type = type; n.frequency.value = f; if (q) n.Q.value = q; return n; }
+const SFX = {
+  airhorn(o) {   // bocina reggae: 3 golpes cortos + uno largo
+    [[0, .13], [.18, .13], [.36, .13], [.54, .6]].forEach(([st, len]) => {
+      const t = o.t + st, lp = bq(o, 'lowpass', 2600), e = env1(o, t, .01, .5, len);
+      lp.connect(e);
+      [466, 470, 932].forEach((f, i) => { const n = osc(o, 'sawtooth', f, t, t + len + .1); n.frequency.linearRampToValueAtTime(f * 0.97, t + len); const g = o.c.createGain(); g.gain.value = i === 2 ? .25 : .45; n.connect(g); g.connect(lp); });
+    });
+  },
+  siren(o) {
+    const n = osc(o, 'square', 700, o.t, o.t + 2.2), lfo = osc(o, 'triangle', 2.2, o.t, o.t + 2.2), lg = o.c.createGain(), lp = bq(o, 'lowpass', 3000);
+    lg.gain.value = 380; lfo.connect(lg); lg.connect(n.frequency);
+    const e = env1(o, o.t, .05, .22, 2.1); n.connect(lp); lp.connect(e);
+  },
+  rewind(o) {
+    const n = noiseSrc(o, o.t, 1.3), bp = bq(o, 'bandpass', 3000, 2), e = env1(o, o.t, .02, .7, 1.25);
+    bp.frequency.exponentialRampToValueAtTime(250, o.t + 1.2); n.connect(bp); bp.connect(e);
+    const s = osc(o, 'sawtooth', 900, o.t, o.t + 1.3), g = o.c.createGain(); g.gain.value = .25;
+    s.frequency.exponentialRampToValueAtTime(60, o.t + 1.2); s.connect(g); g.connect(e);
+  },
+  boom(o) {
+    const s = osc(o, 'sine', 140, o.t, o.t + 1.6); s.frequency.exponentialRampToValueAtTime(32, o.t + 1.3);
+    s.connect(env1(o, o.t, .005, 1.2, 1.5));
+    const n = noiseSrc(o, o.t, .12), lp = bq(o, 'lowpass', 1500); n.connect(lp); lp.connect(env1(o, o.t, .002, .5, .1));
+  },
+  scratch(o) {
+    for (let i = 0; i < 4; i++) {
+      const t = o.t + i * .14, n = noiseSrc(o, t, .12), bp = bq(o, 'bandpass', i % 2 ? 900 : 1600, 3);
+      bp.frequency.exponentialRampToValueAtTime(i % 2 ? 2200 : 500, t + .11);
+      n.connect(bp); bp.connect(env1(o, t, .005, .8, .11));
+    }
+  },
+  applause(o) {
+    const bp = bq(o, 'bandpass', 2400, .6); bp.connect(o.g);
+    for (let i = 0; i < 70; i++) {
+      const t = o.t + Math.random() * 2.4, n = noiseSrc(o, t, .05), g = o.c.createGain();
+      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.12 + Math.random() * .2, t + .004); g.gain.exponentialRampToValueAtTime(.0001, t + .045);
+      n.connect(g); g.connect(bp);
+    }
+  },
+  flame(o) {
+    const n = noiseSrc(o, o.t, 1.5), lp = bq(o, 'lowpass', 500); lp.frequency.linearRampToValueAtTime(2200, o.t + .25); lp.frequency.linearRampToValueAtTime(700, o.t + 1.4);
+    n.connect(lp); lp.connect(env1(o, o.t, .06, .9, 1.4));
+  },
+  pop(o) {
+    const n = noiseSrc(o, o.t, .2), hp = bq(o, 'highpass', 1200); n.connect(hp); hp.connect(env1(o, o.t, .002, .9, .18));
+    const s = osc(o, 'sine', 1800, o.t, o.t + .3); s.frequency.exponentialRampToValueAtTime(600, o.t + .25); s.connect(env1(o, o.t, .002, .25, .25));
+  },
+  hiss(o) {
+    const n = noiseSrc(o, o.t, 3), hp = bq(o, 'highpass', 2500); n.connect(hp); hp.connect(env1(o, o.t, .3, .35, 2.6));
+  }
+};
+function playSfx(id, name) {
+  const fn = SFX[name]; if (!fn) return;
+  const m = mix[id];
+  if (id !== djId && !(m && m.f > 0.01)) return;   // fuera del radio no se oye
+  fn(sfxOut(id));
 }
 
 /* =====================================================================
@@ -284,6 +414,55 @@ $('wave').addEventListener('click', (e) => {
   post('control', { action: 'seek', value: ((e.clientX - r.left) / r.width) * d });
 });
 
+const FX_ICONS = {
+  fire: '<path d="M12 3c1 3 4 4.5 4 8.5a4 4 0 0 1-8 0c0-2 1-3 1-3 .5 1.5 1.5 2 2 2 0-3-1-5 1-7.5z"/><path d="M12 21a7 7 0 0 0 7-7"/>',
+  smoke: '<path d="M7 15a4 4 0 0 1 .5-8 5 5 0 0 1 9.5 1.5A3.5 3.5 0 0 1 17 15H7z"/><path d="M8 19h8M10 22h4"/>',
+  confetti: '<path d="M4 20l5-13 8 8z"/><path d="M14 4l1 2M19 6l-2 1M20 11l-2-.5M11 3l.5 2"/>'
+};
+const SFX_LIST = { airhorn: ['Bocina', '<path d="M3 10v4h3l7 4V6L6 10z"/><path d="M16 9a4 4 0 0 1 0 6M19 6a8 8 0 0 1 0 12"/>'],
+  siren: ['Sirena', '<path d="M6 18V12a6 6 0 0 1 12 0v6M4 18h16M12 2v2M4.5 5.5l1.5 1.5M19.5 5.5 18 7"/>'],
+  rewind: ['Rewind', '<path d="M11 6 4 12l7 6zM20 6l-7 6 7 6z"/>'],
+  boom: ['Boom', '<circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="10.5" opacity=".5"/>'],
+  scratch: ['Scratch', '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2"/><path d="M12 3c3 3 3 6 0 9"/>'],
+  applause: ['Aplausos', '<path d="M8 13l-3-3a1.5 1.5 0 0 1 2-2l4 4M10 11 6.5 7.5a1.5 1.5 0 0 1 2-2L13 10M12 9l-2-2a1.5 1.5 0 0 1 2-2l5 5c2 2 2 5 0 7a5 5 0 0 1-7 0l-4-4"/>'] };
+let effects = [], sounds = [];
+function renderFx() {
+  const b = boothOf(djId) || {}, st = states[djId] || {}, n = (b.fx || []).length;
+  $('fxCount').textContent = n ? `${n} ${n === 1 ? 'punto' : 'puntos'}` : 'Sin puntos (los pone un admin)';
+  const fxb = $('fxBtns'); fxb.innerHTML = '';
+  effects.forEach((e) => {
+    const btn = document.createElement('button');
+    btn.className = 'fxb ' + e.id; btn.disabled = !n;
+    btn.innerHTML = `<svg viewBox="0 0 24 24">${FX_ICONS[e.id] || FX_ICONS.fire}</svg><span>${esc(e.label)}</span>`;
+    btn.onclick = () => { post('control', { action: 'fx', value: e.id }); btn.classList.remove('flash'); void btn.offsetWidth; btn.classList.add('flash'); };
+    fxb.appendChild(btn);
+  });
+  const sg = $('sfxGrid'); sg.innerHTML = '';
+  sounds.forEach((name) => {
+    const [label, icon] = SFX_LIST[name] || [name, ''];
+    const btn = document.createElement('button');
+    btn.className = 'sfx';
+    btn.innerHTML = `<svg viewBox="0 0 24 24">${icon}</svg>${esc(label)}`;
+    btn.onclick = () => { post('control', { action: 'sfx', value: name }); btn.classList.add('hit'); setTimeout(() => btn.classList.remove('hit'), 180); };
+    sg.appendChild(btn);
+  });
+  const m = st.mix || { mode: 'fade', secs: 6, auto: true };
+  document.querySelectorAll('#mixMode button').forEach((x) => x.classList.toggle('on', x.dataset.m === m.mode));
+  document.querySelectorAll('#mixSecs button').forEach((x) => x.classList.toggle('on', Number(x.dataset.s) === m.secs));
+  $('mixAuto').checked = !!m.auto;
+  $('mixInfo').textContent = m.mode === 'cut' ? 'Cambio inmediato' : `${m.mode === 'filter' ? 'Filtro + fade' : 'Fade'} de ${m.secs} s${m.auto ? ' · auto-mix' : ''}`;
+}
+function sendMix(patch) {
+  const st = states[djId]; if (!st) return;
+  st.mix = { ...(st.mix || { mode: 'fade', secs: 6, auto: true }), ...patch };
+  renderFx();
+  post('control', { action: 'transition', value: st.mix });
+}
+document.querySelectorAll('#mixMode button').forEach((x) => (x.onclick = () => sendMix({ mode: x.dataset.m })));
+document.querySelectorAll('#mixSecs button').forEach((x) => (x.onclick = () => sendMix({ secs: Number(x.dataset.s) })));
+$('mixAuto').addEventListener('change', () => sendMix({ auto: $('mixAuto').checked }));
+$('bMic').onclick = () => post('mic');
+
 function renderDJ() {
   if (view !== 'dj') return;
   const b = boothOf(djId) || {};
@@ -309,8 +488,11 @@ function renderDJ() {
   $('eqNote').textContent = eqOff ? 'YouTube: EQ y filtro no disponibles' : 'Doble clic: resetear';
   if (!faderDrag) setVol(st.djVolume ?? 0.8, false);
   renderPads();
-  // cola / historial
+  // cola / historial / fx
   $('qCount').textContent = st.queue.length;
+  const fxTab = qtab === 'fx';
+  $('qList').classList.toggle('hidden', fxTab); $('fxPanel').classList.toggle('hidden', !fxTab); $('bClear').classList.toggle('hidden', fxTab);
+  if (fxTab) return renderFx();
   const host = $('qList');
   const list = qtab === 'queue' ? st.queue : st.history;
   host.innerHTML = list.length ? '' : `<div class="empty"><b>${qtab === 'queue' ? 'La cola está vacía' : 'Sin historial'}</b>${qtab === 'queue' ? 'Pega un enlace arriba para añadir canciones.' : 'Aquí salen las canciones que ya sonaron.'}</div>`;
@@ -406,6 +588,8 @@ function edit(b) {
   $('fRadius').max = adm.maxRadius;
   $('fRadius').value = d.radius; $('fVolume').value = Math.round(d.volume * 100); $('fInteract').value = d.interact;
   $('fJob').value = d.job || ''; $('fBlip').checked = !!d.blip;
+  d.fx = arr(d.fx);
+  renderFxPts();
   $('bDel').classList.toggle('hidden', !d.id);
   $('bMute').classList.toggle('hidden', !d.id);
   setAccess(d.access || 'all');
@@ -425,15 +609,34 @@ function updForm() {
   $('fCoords').textContent = `${d.coords.x.toFixed(2)}, ${d.coords.y.toFixed(2)}, ${d.coords.z.toFixed(2)}`;
   $('rLbl').textContent = d.radius + ' m';
   $('zone').style.setProperty('--zs', (18 + (d.radius / adm.maxRadius) * 80) + '%');
-  post('editing', { coords: d.coords, radius: d.radius });
+  post('editing', { coords: d.coords, radius: d.radius, fx: d.fx });
 }
+function renderFxPts() {
+  const d = adm.draft, host = $('fxPts');
+  host.innerHTML = d.fx.length ? '' : '<span class="fxnone">Sin puntos todavía. Ponte donde quieres el fuego y pulsa “Añadir punto aquí”.</span>';
+  d.fx.forEach((p, i) => {
+    const el = document.createElement('span');
+    el.className = 'fxpt';
+    el.innerHTML = `<i>✦</i>FX ${i + 1}<button title="Quitar">✕</button>`;
+    el.querySelector('button').onclick = () => { d.fx.splice(i, 1); renderFxPts(); updForm(); };
+    host.appendChild(el);
+  });
+  $('bFxTest').disabled = !d.fx.length;
+}
+$('bFxAdd').onclick = async () => {
+  const here = await post('here');
+  if (!here || here.x === undefined) return;
+  if (adm.draft.fx.length >= 12) return toast('Máximo 12 puntos por cabina', 'error');
+  adm.draft.fx.push(here); renderFxPts(); updForm();
+};
+$('bFxTest').onclick = () => post('testFx', { kind: 'fire' });
 ['fName', 'fRadius', 'fVolume', 'fInteract', 'fJob'].forEach((id) => $(id).addEventListener('input', updForm));
 $('fBlip').addEventListener('change', updForm);
 document.querySelectorAll('#fAccess button').forEach((x) => (x.onclick = () => setAccess(x.dataset.a)));
 $('bNew').onclick = async () => {
   const here = await post('here');
   const d = adm.defaults;
-  edit({ name: 'Nueva cabina', coords: here && here.x ? here : { x: 0, y: 0, z: 0 }, radius: d.radius || 40, volume: d.volume || 0.85, interact: d.interact || 2.5, access: d.access || 'all', job: '', blip: d.blip !== false });
+  edit({ fx: [], name: 'Nueva cabina', coords: here && here.x ? here : { x: 0, y: 0, z: 0 }, radius: d.radius || 40, volume: d.volume || 0.85, interact: d.interact || 2.5, access: d.access || 'all', job: '', blip: d.blip !== false });
 };
 $('bHere').onclick = async () => { const here = await post('here'); if (here && here.x !== undefined) { adm.draft.coords = here; updForm(); } };
 $('bTp').onclick = () => post('teleport', { coords: adm.draft.coords });
@@ -487,8 +690,10 @@ function frame() {
 requestAnimationFrame(frame);
 
 /* ============================ comun ============================ */
+let micState = false;
 function show(v) {
   view = v;
+  $('micpill').classList.toggle('hidden', !micState || v === 'dj');
   $('dj').classList.toggle('hidden', v !== 'dj');
   $('admin').classList.toggle('hidden', v !== 'admin');
   ['dj', 'admin'].forEach((id) => { const el = $(id); el.style.animation = 'none'; void el.offsetWidth; el.style.animation = ''; });
@@ -537,6 +742,8 @@ window.addEventListener('message', ({ data: m }) => {
       break;
     case 'openDJ':
       djId = m.id; offset = m.serverNow - performance.now();
+      effects = arr(m.effects); sounds = arr(m.sounds);
+      $('bMic').classList.toggle('on', !!m.mic);
       if (m.booth && !boothOf(m.id)) booths.push(m.booth);
       states[m.id] = norm(m.state);
       qtab = 'queue'; document.querySelectorAll('.qtabs [data-q]').forEach((x) => x.classList.toggle('on', x.dataset.q === 'queue'));
@@ -552,6 +759,23 @@ window.addEventListener('message', ({ data: m }) => {
       break;
     case 'adminSaved':
       adm.sel = m.id; setTimeout(() => { const b = boothOf(m.id); if (b && view === 'admin') edit(b); }, 150);
+      break;
+    case 'sfx':
+      playSfx(m.id, m.name);
+      break;
+    case 'duck':
+      duck[m.id] = duck[m.id] || { on: false, level: 0.22, cur: 1 };
+      duck[m.id].on = !!m.on; duck[m.id].level = m.level ?? 0.22;
+      break;
+    case 'mic':
+      $('bMic').classList.toggle('on', !!m.on);
+      $('micpill').classList.toggle('hidden', !m.on || view === 'dj');
+      micState = !!m.on;
+      if (m.booth) $('micText').textContent = `${m.booth} · habla con tu tecla de voz`;
+      if (m.on) toast('Micro activo: habla con tu tecla de voz y te oye toda la cabina', 'success');
+      break;
+    case 'micTalking':
+      $('bMic').classList.toggle('talk', !!m.on); $('micpill').classList.toggle('talk', !!m.on);
       break;
     case 'prompt':
       $('prompt').classList.toggle('hidden', !m.show || !!view);
