@@ -511,8 +511,7 @@
 
 /* ==========================================================================
    Lineas cortadas blancas alrededor de cada hexagono del HUD (nivel y elementos).
-   Se mueven despacio. El estres con 70%+ se pone rojo y va mas rapido.
+   Fijas (sin animacion) y suaves. El estres con 70%+ se pone rojo.
    ========================================================================== */
-.cas-hexdash { color: #fff; opacity: .9; animation: casHexDash 9s linear infinite; filter: drop-shadow(0 0 1.5px rgba(0, 0, 0, .7)); }
-.cas-hexdash-high { color: #ff6b5e; opacity: 1; animation-duration: 2.4s; filter: drop-shadow(0 0 2.5px rgba(255, 70, 60, .8)); }
-@keyframes casHexDash { to { stroke-dashoffset: -45; } }
+.cas-hexdash { color: #fff; opacity: .45; filter: drop-shadow(0 0 1.5px rgba(0, 0, 0, .7)); }
+.cas-hexdash-high { color: #ff6b5e; opacity: .8; }
