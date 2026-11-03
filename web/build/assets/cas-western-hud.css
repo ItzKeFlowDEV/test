@@ -508,3 +508,13 @@
 .z-99 h2 {
     color: var(--mrs-bone) !important;
 }
+
+/* ==========================================================================
+   Estres: lineas cortadas alrededor del hexagono (tema western del HUD)
+   Se mueven despacio; con estres alto (70%+) se ponen rojas y van mas rapido.
+   ========================================================================== */
+.cas-stress-dash { color: rgba(231, 218, 187, .85); filter: drop-shadow(0 0 2px rgba(0, 0, 0, .6)); }
+.cas-stress-dash path { animation: casStressDash 9s linear infinite; }
+.cas-stress-high { color: #ff6b5e; filter: drop-shadow(0 0 3px rgba(255, 70, 60, .75)); }
+.cas-stress-high path { animation-duration: 2.4s; }
+@keyframes casStressDash { to { stroke-dashoffset: -45; } }
