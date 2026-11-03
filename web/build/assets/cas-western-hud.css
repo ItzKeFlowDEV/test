@@ -1,0 +1,510 @@
+/* ==========================================================================
+   Tema western del panel de ajustes del HUD (/hudconfig)
+   Misma estetica que vorp_inventory/html/css/cas-western.css: tablas de madera
+   con remaches de laton, hojas de papel envejecido para las cabeceras, botones
+   de madera con filo de laton y tipografia RDR Lino + Oswald.
+
+   Nada del bundle se ha tocado para esto: la hoja se carga la ultima desde
+   web/build/index.html y sobrescribe. Quitando esa linea el panel vuelve a su
+   aspecto original.
+
+   Las piezas del panel no tienen clases propias; se reconocen por la imagen de
+   fondo que les pone el bundle (atributo style), que es estable:
+     newbgmain / settings-background  -> tabla de madera (panel)
+     headerbg / hud-settings-background -> hoja de papel (cabecera)
+     onerowbg (data URI "UklGRjwEAAB...") -> renglon de cuero
+     closebtnbg (clase Tailwind)       -> boton de madera
+   ========================================================================== */
+
+@font-face {
+    font-family: 'RDR_Lino_Regular';
+    src: url('./fonts/RDR_Lino_Regular.ttf') format('truetype');
+    font-display: swap;
+}
+
+:root {
+    --mrs-paper: #e7dabb;
+    --mrs-paper-alt: #f0e6cd;
+    --mrs-paper-deep: #d4c29c;
+    --mrs-ink: #2c1c0f;
+    --mrs-ink-soft: #5a4330;
+    --mrs-ink-faded: #7d6548;
+    --mrs-wood: #3a2517;
+    --mrs-wood-dark: #24160d;
+    --mrs-wood-light: #5b3b24;
+    --mrs-brass: #b9903f;
+    --mrs-brass-light: #e2c274;
+    --mrs-brass-dark: #6f5220;
+    --mrs-red: #8f2b20;
+    --mrs-bone: #e4d4ae;
+    --mrs-bone-soft: #c3ab7e;
+    --mrs-shadow: rgba(0, 0, 0, 0.55);
+    --mrs-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23g)' opacity='0.55'/%3E%3C/svg%3E");
+    --mrs-woodgrain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='160'%3E%3Cfilter id='w'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.02 0.7' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='260' height='160' filter='url(%23w)' opacity='0.5'/%3E%3C/svg%3E");
+    --mrs-rivet: radial-gradient(circle at 34% 30%, var(--mrs-brass-light) 0%, var(--mrs-brass) 46%, var(--mrs-brass-dark) 68%, rgba(0, 0, 0, 0) 72%);
+}
+
+/* El contenedor de ajustes trae la clase "z-99", que no existe en el CSS
+   compilado: sin esto el logo y la parte superior quedaban por encima. */
+.z-99 {
+    z-index: 99;
+}
+
+/* --------------------------------------------------------------------------
+   Tipografia
+   -------------------------------------------------------------------------- */
+.z-99 .redemption,
+[class*="closebtnbg"] {
+    font-family: 'RDR_Lino_Regular', redemption, serif !important;
+    letter-spacing: 1.6px;
+}
+
+.z-99 .hapna {
+    font-family: 'Oswald', hapna, sans-serif !important;
+    letter-spacing: 0.5px;
+}
+
+.z-99 .text-white {
+    color: var(--mrs-bone) !important;
+}
+
+/* --------------------------------------------------------------------------
+   TABLA DE MADERA (panel principal y de cada seccion)
+   -------------------------------------------------------------------------- */
+.z-99 [style*="newbgmain"],
+.z-99 [style*="settings-background"] {
+    position: relative;
+    background-color: transparent !important;
+    background-image:
+        var(--mrs-woodgrain),
+        repeating-linear-gradient(180deg, rgba(0, 0, 0, 0) 0 9.4vh, rgba(0, 0, 0, 0.28) 9.4vh 9.6vh),
+        linear-gradient(180deg, rgba(86, 55, 31, 0.94) 0%, rgba(51, 32, 15, 0.94) 5%, rgba(35, 21, 11, 0.94) 34%, rgba(25, 15, 7, 0.94) 100%) !important;
+    background-size: 260px 160px, 100% 100%, 100% 100% !important;
+    background-repeat: repeat, no-repeat, no-repeat !important;
+    background-blend-mode: multiply, normal, normal;
+    border: 2px solid var(--mrs-wood-dark);
+    border-radius: 4px;
+    box-shadow:
+        0 0 0 1px rgba(0, 0, 0, 0.5) inset,
+        0 0 70px rgba(0, 0, 0, 0.55) inset,
+        0 2px 0 rgba(255, 255, 255, 0.05) inset,
+        0 16px 38px rgba(0, 0, 0, 0.6);
+}
+
+/* Remaches de laton en las cuatro esquinas */
+.z-99 [style*="newbgmain"]::after,
+.z-99 [style*="settings-background"]::after {
+    content: '';
+    position: absolute;
+    inset: 6px;
+    pointer-events: none;
+    z-index: 5;
+    background-image: var(--mrs-rivet), var(--mrs-rivet), var(--mrs-rivet), var(--mrs-rivet);
+    background-size: 11px 11px;
+    background-position: left top, right top, left bottom, right bottom;
+    background-repeat: no-repeat;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.75));
+}
+
+/* --------------------------------------------------------------------------
+   HOJA DE PAPEL (cabeceras)
+   -------------------------------------------------------------------------- */
+.z-99 [style*="headerbg"],
+.z-99 [style*="hud-settings-background"] {
+    position: relative;
+    background-color: var(--mrs-paper) !important;
+    background-image:
+        radial-gradient(ellipse at 12% 8%, rgba(124, 94, 56, 0.24) 0%, transparent 44%),
+        radial-gradient(ellipse at 88% 92%, rgba(124, 94, 56, 0.22) 0%, transparent 46%),
+        linear-gradient(150deg, var(--mrs-paper-alt) 0%, var(--mrs-paper) 48%, var(--mrs-paper-deep) 100%),
+        var(--mrs-grain) !important;
+    background-size: auto, auto, 100% 100%, 220px 220px !important;
+    background-repeat: no-repeat, no-repeat, no-repeat, repeat !important;
+    background-blend-mode: normal, normal, normal, multiply;
+    border-radius: 2px;
+    box-shadow:
+        0 0 0 1px rgba(168, 132, 68, 0.6),
+        0 0 22px rgba(70, 48, 24, 0.32) inset,
+        0 5px 12px rgba(0, 0, 0, 0.45);
+}
+
+/* Chinchetas de laton arriba de la hoja */
+.z-99 [style*="headerbg"]::after,
+.z-99 [style*="hud-settings-background"]::after {
+    content: '';
+    position: absolute;
+    inset: 5px;
+    pointer-events: none;
+    background-image: var(--mrs-rivet), var(--mrs-rivet);
+    background-size: 9px 9px;
+    background-position: left top, right top;
+    background-repeat: no-repeat;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));
+}
+
+/* Rotulo de la hoja: tinta, con filete de laton debajo */
+.z-99 [style*="headerbg"],
+.z-99 [style*="hud-settings-background"] p,
+.z-99 [style*="hud-settings-background"] .text-white {
+    color: var(--mrs-ink) !important;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4) !important;
+}
+
+.z-99 [style*="headerbg"] {
+    font-size: clamp(18px, 2.8vh, 30px) !important;
+    letter-spacing: 2.6px;
+    text-transform: uppercase;
+    flex-direction: column;
+}
+
+.z-99 [style*="headerbg"]::before,
+.z-99 [style*="hud-settings-background"] > p.redemption::after {
+    content: '';
+    display: block;
+    width: 46%;
+    height: 2px;
+    margin: 4px auto 0;
+    background: linear-gradient(90deg, rgba(185, 144, 63, 0), var(--mrs-brass), rgba(185, 144, 63, 0));
+}
+
+.z-99 [style*="headerbg"]::before {
+    order: 2;
+}
+
+.z-99 [style*="hud-settings-background"] > p.redemption {
+    text-transform: uppercase;
+    letter-spacing: 2.4px;
+}
+
+.z-99 [style*="hud-settings-background"] > p.hapna {
+    font-family: Georgia, 'Times New Roman', serif !important;
+    font-style: italic;
+    color: var(--mrs-ink-soft) !important;
+}
+
+/* --------------------------------------------------------------------------
+   TARJETAS DEL MENU PRINCIPAL (conservan su ilustracion)
+   Se enmarcan como una lamina clavada en la tabla: filo de laton, sombra
+   hundida y el rotulo en hueso.
+   -------------------------------------------------------------------------- */
+.z-99 .grid.grid-cols-2 > div {
+    border: 1px solid var(--mrs-brass-dark);
+    border-radius: 3px;
+    overflow: hidden;
+    box-shadow:
+        0 0 0 1px rgba(0, 0, 0, 0.6),
+        0 0 26px rgba(0, 0, 0, 0.6) inset,
+        0 4px 10px rgba(0, 0, 0, 0.5);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease !important;
+}
+
+.z-99 .grid.grid-cols-2 > div:hover {
+    opacity: 1 !important;
+    border-color: var(--mrs-brass);
+    transform: translateY(-1px);
+    box-shadow:
+        0 0 0 1px rgba(0, 0, 0, 0.6),
+        0 0 26px rgba(0, 0, 0, 0.45) inset,
+        0 0 14px rgba(185, 144, 63, 0.3),
+        0 6px 12px rgba(0, 0, 0, 0.55);
+}
+
+.z-99 .grid.grid-cols-2 > div p.redemption {
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.95), 0 0 10px rgba(0, 0, 0, 0.8);
+}
+
+.z-99 .grid.grid-cols-2 > div p.hapna {
+    color: var(--mrs-bone-soft) !important;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95);
+}
+
+/* --------------------------------------------------------------------------
+   RENGLONES (listas de elementos, tamanos, porcentajes...)
+   -------------------------------------------------------------------------- */
+.z-99 [style*="UklGRjwEAAB"] {
+    background-color: transparent !important;
+    background-image:
+        radial-gradient(ellipse at 20% 20%, rgba(120, 78, 42, 0.32) 0%, transparent 60%),
+        linear-gradient(180deg, #3d2716 0%, #2b1a0f 55%, #1e1209 100%) !important;
+    background-size: 100% 100% !important;
+    border: 1px solid rgba(0, 0, 0, 0.6);
+    border-left: 3px solid var(--mrs-brass-dark);
+    border-radius: 3px;
+    box-shadow:
+        0 0 0 1px rgba(185, 144, 63, 0.14) inset,
+        0 0 18px rgba(0, 0, 0, 0.5) inset,
+        0 2px 5px rgba(0, 0, 0, 0.4);
+    transition: border-color 0.15s ease;
+}
+
+.z-99 [style*="UklGRjwEAAB"]:hover {
+    border-left-color: var(--mrs-brass);
+}
+
+.z-99 [style*="UklGRjwEAAB"] p.redemption {
+    text-transform: uppercase;
+    letter-spacing: 1.8px;
+}
+
+.z-99 [style*="UklGRjwEAAB"] p.hapna {
+    color: var(--mrs-bone-soft) !important;
+}
+
+/* Iconos de interruptor: el tick rojo pasa a tinta de laton */
+.z-99 [style*="UklGRjwEAAB"] img {
+    filter: sepia(1) saturate(1.6) hue-rotate(-12deg) brightness(1.05);
+}
+
+/* --------------------------------------------------------------------------
+   BOTONES (guardar, cancelar, volver, cerrar, HUD Default...)
+   El bundle usa la imagen de pincel closebtnbg; pasan a ser botones de
+   madera con filo de laton, como .dialog-confirm del inventario.
+   -------------------------------------------------------------------------- */
+[class*="closebtnbg"] {
+    background-image: linear-gradient(180deg, #54331d 0%, #3a2213 55%, #281607 100%) !important;
+    background-size: 100% 100% !important;
+    border: 1px solid var(--mrs-brass-dark);
+    border-radius: 3px;
+    color: var(--mrs-bone) !important;
+    text-transform: uppercase;
+    font-size: clamp(12px, 1.6vh, 17px) !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
+    box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.1) inset,
+        0 3px 7px rgba(0, 0, 0, 0.5);
+    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease, color 0.15s ease !important;
+}
+
+[class*="closebtnbg"]:hover {
+    background-image: linear-gradient(180deg, #5f3a21 0%, #432816 55%, #2e1a09 100%) !important;
+    color: #fbeecb !important;
+    border-color: var(--mrs-brass);
+    transform: translateY(-1px);
+    box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.16) inset,
+        0 0 12px rgba(185, 144, 63, 0.3),
+        0 5px 11px rgba(0, 0, 0, 0.55);
+}
+
+/* Botones de descarte (Cancelar del cuadro de HUD Default) en rojo, como
+   .dialog-cancel del inventario. */
+[class*="closebtnbg"].cas-btn-cancel {
+    background-image: linear-gradient(180deg, #8f2b20 0%, #6d1f16 100%) !important;
+    border-color: #521610;
+    color: #f0d4cc !important;
+}
+
+[class*="closebtnbg"].cas-btn-cancel:hover {
+    background-image: linear-gradient(180deg, #a3332a 0%, #7d241a 100%) !important;
+    border-color: #a8372a;
+    color: #fff !important;
+    box-shadow: 0 0 12px rgba(143, 43, 32, 0.45);
+}
+
+/* --------------------------------------------------------------------------
+   CUADRO DE CONFIRMACION "HUD Default" (hoja de papel, como los dialogos
+   del inventario)
+   -------------------------------------------------------------------------- */
+.cas-dialog {
+    position: relative;
+    border: 2px solid var(--mrs-wood-dark) !important;
+    border-radius: 4px !important;
+    background-color: var(--mrs-paper) !important;
+    background-image:
+        radial-gradient(ellipse at 12% 8%, rgba(124, 94, 56, 0.22) 0%, transparent 42%),
+        radial-gradient(ellipse at 88% 92%, rgba(124, 94, 56, 0.2) 0%, transparent 45%),
+        linear-gradient(150deg, var(--mrs-paper-alt) 0%, var(--mrs-paper) 48%, var(--mrs-paper-deep) 100%),
+        var(--mrs-grain) !important;
+    background-blend-mode: normal, normal, normal, multiply;
+    box-shadow:
+        0 0 0 1px rgba(168, 132, 68, 0.6),
+        0 0 26px rgba(70, 48, 24, 0.32) inset,
+        0 16px 38px rgba(0, 0, 0, 0.65) !important;
+}
+
+.cas-dialog::after {
+    content: '';
+    position: absolute;
+    inset: 5px;
+    pointer-events: none;
+    background-image: var(--mrs-rivet), var(--mrs-rivet), var(--mrs-rivet), var(--mrs-rivet);
+    background-size: 9px 9px;
+    background-position: left top, right top, left bottom, right bottom;
+    background-repeat: no-repeat;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));
+}
+
+.cas-dialog .cas-dialog-title {
+    color: var(--mrs-ink) !important;
+    text-transform: uppercase;
+    letter-spacing: 2.2px;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+.cas-dialog .cas-dialog-title::after {
+    content: '';
+    display: block;
+    width: 46%;
+    height: 2px;
+    margin: 6px auto 0;
+    background: linear-gradient(90deg, rgba(185, 144, 63, 0), var(--mrs-brass), rgba(185, 144, 63, 0));
+}
+
+.cas-dialog .cas-dialog-text {
+    font-family: Georgia, 'Times New Roman', serif !important;
+    font-style: italic;
+    color: var(--mrs-ink-soft) !important;
+    line-height: 1.5;
+}
+
+/* --------------------------------------------------------------------------
+   Controles
+   -------------------------------------------------------------------------- */
+.z-99 input[type="range"] {
+    accent-color: var(--mrs-brass);
+}
+
+.z-99 .custom-scroll {
+    scrollbar-color: var(--mrs-brass) rgba(20, 12, 6, 0.6);
+}
+
+.z-99 .custom-scroll::-webkit-scrollbar-track {
+    background: rgba(20, 12, 6, 0.6);
+}
+
+.z-99 .custom-scroll::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, var(--mrs-brass-light), var(--mrs-brass) 50%, var(--mrs-brass-dark));
+}
+
+/* --------------------------------------------------------------------------
+   Rotulos siempre en mayusculas (la RDR Lino no tiene minusculas propias)
+   -------------------------------------------------------------------------- */
+.z-99 .redemption {
+    text-transform: uppercase;
+}
+
+/* Titulos de dos lineas en las tarjetas del menu principal: centrados */
+.z-99 .grid.grid-cols-2 > div p {
+    text-align: center;
+}
+
+/* --------------------------------------------------------------------------
+   PERSONALIZACION DE COLOR: fichas de cada elemento y vista previa.
+   Solo las cajas grandes (p-6 / p-8); las muestras de color no se tocan.
+   -------------------------------------------------------------------------- */
+.z-99 .rounded-lg.p-6,
+.z-99 .rounded-lg.p-8 {
+    background-color: transparent !important;
+    background-image:
+        radial-gradient(ellipse at 20% 15%, rgba(120, 78, 42, 0.3) 0%, transparent 60%),
+        linear-gradient(180deg, #3d2716 0%, #2b1a0f 55%, #1e1209 100%) !important;
+    border-color: var(--mrs-brass-dark) !important;
+    border-radius: 3px !important;
+    backdrop-filter: none !important;
+    box-shadow:
+        0 0 0 1px rgba(0, 0, 0, 0.6),
+        0 0 24px rgba(0, 0, 0, 0.5) inset,
+        0 4px 10px rgba(0, 0, 0, 0.45) !important;
+}
+
+/* Ficha seleccionada: filo de laton encendido */
+.z-99 .rounded-lg.p-6[class*="border-white/60"],
+.z-99 .rounded-lg.p-6[class*="scale-"] {
+    border-color: var(--mrs-brass) !important;
+    box-shadow:
+        0 0 0 1px rgba(0, 0, 0, 0.6),
+        0 0 24px rgba(0, 0, 0, 0.45) inset,
+        0 0 14px rgba(185, 144, 63, 0.35) !important;
+}
+
+/* Vista previa en vivo: hueco hundido en la tabla */
+.z-99 [class*="bg-black/30"].rounded-lg {
+    background-image:
+        linear-gradient(180deg, rgba(14, 9, 4, 0.85), rgba(24, 15, 8, 0.85)) !important;
+}
+
+.z-99 .text-white\/70 {
+    color: var(--mrs-bone-soft) !important;
+}
+
+/* --------------------------------------------------------------------------
+   PRESETS DE COLOR: las fichas son un SVG; se repinta la tabla y el marco.
+   -------------------------------------------------------------------------- */
+.z-99 .grid.grid-cols-3 > div > svg rect[fill="#181818"] {
+    fill: #2b1a0f;
+    opacity: 0.97;
+}
+
+.z-99 .grid.grid-cols-3 > div > svg path[stroke="#888888"] {
+    stroke: var(--mrs-brass-dark);
+    opacity: 0.9;
+}
+
+.z-99 .grid.grid-cols-3 > div > svg path[stroke="#555555"] {
+    stroke: var(--mrs-brass);
+    opacity: 0.45;
+}
+
+.z-99 .grid.grid-cols-3 h3 {
+    color: var(--mrs-bone) !important;
+}
+
+/* --------------------------------------------------------------------------
+   TEMAS DE HUD: las tarjetas de tema son un SVG (800x340); se repinta el
+   fondo como tabla y los filetes blancos como laton.
+   -------------------------------------------------------------------------- */
+.z-99 svg[viewBox="0 0 800 340"] > rect[width="800"]:not([fill^="url"]) {
+    fill: #2b1a0f;
+}
+
+.z-99 svg[viewBox="0 0 800 340"] > rect[stroke] {
+    stroke: var(--mrs-brass-dark);
+}
+
+.z-99 svg[viewBox="0 0 800 340"] > rect[stroke="#e5e5e5"] {
+    stroke: var(--mrs-brass-light);
+}
+
+.z-99 svg[viewBox="0 0 800 340"] > rect[stroke-dasharray] {
+    stroke: var(--mrs-brass);
+}
+
+/* --------------------------------------------------------------------------
+   MINIMAPA: renglones con filo izquierdo; blanco -> laton, fondo de cuero
+   -------------------------------------------------------------------------- */
+.z-99 [class*="border-l-[3px]"] {
+    background-image:
+        radial-gradient(ellipse at 20% 20%, rgba(120, 78, 42, 0.28) 0%, transparent 60%),
+        linear-gradient(180deg, #3d2716 0%, #2b1a0f 55%, #1e1209 100%) !important;
+    background-color: transparent !important;
+    border-left-color: var(--mrs-brass-dark) !important;
+    border-radius: 0 3px 3px 0;
+    box-shadow:
+        0 0 0 1px rgba(0, 0, 0, 0.55),
+        0 0 18px rgba(0, 0, 0, 0.5) inset !important;
+}
+
+.z-99 [class*="border-l-[3px]"][class*="border-white/90"] {
+    border-left-color: var(--mrs-brass-light) !important;
+    box-shadow:
+        0 0 0 1px rgba(0, 0, 0, 0.55),
+        0 0 18px rgba(0, 0, 0, 0.45) inset,
+        0 0 12px rgba(185, 144, 63, 0.25) !important;
+}
+
+/* Radio seleccionado: boton de laton */
+.z-99 .w-6.h-6.bg-white.rounded-full {
+    background: radial-gradient(circle at 34% 30%, var(--mrs-brass-light) 0%, var(--mrs-brass) 55%, var(--mrs-brass-dark) 100%) !important;
+}
+
+.z-99 .w-6.h-6.bg-white.rounded-full > .bg-black {
+    background: var(--mrs-wood-dark) !important;
+}
+
+/* Titulos sueltos sobre la tabla (Presets de color, etc.) */
+.z-99 h1,
+.z-99 h2 {
+    color: var(--mrs-bone) !important;
+}

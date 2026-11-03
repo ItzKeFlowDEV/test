@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>CAS Metabolism · NUI Harness</title>
+<style>
+  :root {
+    --bg: #14110d; --panel: #1d1914; --line: #3a3127; --text: #e9dfcf; --muted: #9b8c76;
+    --accent: #b9903f; --accent-2: #e0b865; --danger: #c0504d;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+    font: 13px/1.4 system-ui, -apple-system, Segoe UI, sans-serif; }
+  body { display: grid; grid-template-columns: 360px 1fr; }
+  aside { border-right: 1px solid var(--line); background: var(--panel); overflow-y: auto; height: 100vh; }
+  header { padding: 14px 16px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--panel); z-index: 2; }
+  header h1 { margin: 0; font-size: 15px; color: var(--accent-2); letter-spacing: .02em; }
+  header p { margin: 2px 0 0; color: var(--muted); font-size: 12px; }
+  details { border-bottom: 1px solid var(--line); }
+  summary { padding: 10px 16px; cursor: pointer; font-weight: 600; color: var(--accent-2); user-select: none; }
+  .sec { padding: 4px 16px 14px; display: grid; gap: 8px; }
+  .row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  button { background: #2a241c; color: var(--text); border: 1px solid var(--line); border-radius: 6px;
+    padding: 6px 10px; cursor: pointer; font: inherit; }
+  button:hover { border-color: var(--accent); }
+  button.on { background: var(--accent); color: #1a140c; border-color: var(--accent); font-weight: 600; }
+  button.primary { background: var(--accent); color: #1a140c; font-weight: 600; }
+  button.danger { border-color: var(--danger); color: #f1b3b1; }
+  label { color: var(--muted); font-size: 12px; }
+  input[type=text], input[type=number], select { background: #120f0b; color: var(--text); border: 1px solid var(--line);
+    border-radius: 6px; padding: 5px 7px; font: inherit; width: 100%; }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  .stat { display: grid; grid-template-columns: 18px 92px 1fr 34px; gap: 6px; align-items: center; }
+  .stat .val { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
+  .sub { grid-column: 2 / -1; display: grid; grid-template-columns: 50px 1fr 34px; gap: 6px; align-items: center; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  #log { font: 11px/1.45 ui-monospace, Consolas, monospace; background: #0e0c09; border: 1px solid var(--line);
+    border-radius: 6px; padding: 6px 8px; max-height: 200px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; }
+  #log .in { color: #8fc38f; } #log .out { color: var(--accent-2); } #log .err { color: #f1b3b1; }
+  main { position: relative; overflow: hidden; height: 100vh; }
+  #stage { position: absolute; top: 0; left: 0; transform-origin: 0 0; background-size: cover; background-position: center;
+    box-shadow: 0 0 0 1px var(--line); }
+  #stage iframe { width: 100%; height: 100%; border: 0; display: block; background: transparent; }
+  #res { position: absolute; right: 10px; bottom: 8px; color: var(--muted); font-size: 11px; pointer-events: none; }
+  .hint { color: var(--muted); font-size: 11px; }
+</style>
+</head>
+<body>
+<aside>
+  <header>
+    <h1>CAS Metabolism · NUI Harness</h1>
+    <p>Carga <code>web/build</code> y lee <code>config/*.lua</code> en vivo.</p>
+  </header>
+
+  <details open>
+    <summary>General</summary>
+    <div class="sec">
+      <div class="row">
+        <button id="btnShow" class="on">HUD visible</button>
+        <button id="btnSettings" class="primary">Abrir panel (/hudconfig)</button>
+      </div>
+      <div class="row">
+        <button id="btnReloadLua">Recargar config Lua</button>
+        <button id="btnReloadUI">Recargar UI</button>
+        <button id="btnReset" class="danger">Borrar localStorage</button>
+        <button id="btnResetNui" class="danger">Simular /hudresetall</button>
+      </div>
+      <div class="hint">El UI guarda tema, colores, tamaños y posiciones en localStorage. "Borrar" vuelve a los valores del config.</div>
+    </div>
+  </details>
+
+  <details open>
+    <summary>Tema del HUD (metabolismo)</summary>
+    <div class="sec">
+      <div class="row" id="hudThemes"></div>
+      <label>Tema de la parte superior (ID / dinero / oro / hora)</label>
+      <div class="row" id="headThemes"></div>
+      <div class="row"><button id="btnHead" class="on">Parte superior visible</button></div>
+    </div>
+  </details>
+
+  <details open>
+    <summary>Estado (UpdateStatus)</summary>
+    <div class="sec">
+      <div class="row">
+        <button id="btnAnimate">Animar valores</button>
+        <button id="btnFull">Todo 100</button>
+        <button id="btnLow">Todo bajo</button>
+        <button id="btnGold">Núcleos dorados</button>
+      </div>
+      <div id="stats"></div>
+    </div>
+  </details>
+
+  <details>
+    <summary>Nivel, info superior y armas</summary>
+    <div class="sec">
+      <div class="grid2">
+        <div><label>Nivel</label><input type="number" id="lvl" value="3" min="1"></div>
+        <div><label>XP (0-100)</label><input type="number" id="xp" value="45" min="0" max="100"></div>
+      </div>
+      <div class="grid3">
+        <div><label>ID</label><input type="number" id="pid" value="12"></div>
+        <div><label>Dinero</label><input type="number" id="money" value="1250.5" step="0.01"></div>
+        <div><label>Oro</label><input type="number" id="gold" value="7"></div>
+      </div>
+      <div class="row">
+        <button id="btnInfos">Enviar info</button>
+        <button id="btnWeapon">Arma: off</button>
+        <button id="btnDual">Doble arma</button>
+      </div>
+    </div>
+  </details>
+
+  <details>
+    <summary>Fondo y resolución</summary>
+    <div class="sec">
+      <div class="grid2">
+        <div><label>Resolución del juego</label>
+          <select id="resSel">
+            <option value="1920x1080" selected>1920×1080</option>
+            <option value="2560x1440">2560×1440</option>
+            <option value="1600x900">1600×900</option>
+            <option value="1280x720">1280×720</option>
+            <option value="fit">Ajustar a ventana</option>
+          </select></div>
+        <div><label>Fondo</label>
+          <select id="bgSel">
+            <option value="desert" selected>Atardecer</option>
+            <option value="forest">Bosque</option>
+            <option value="snow">Nieve (claro)</option>
+            <option value="dark">Oscuro</option>
+            <option value="checker">Cuadros</option>
+          </select></div>
+      </div>
+      <label>URL de imagen de fondo (captura del juego, opcional)</label>
+      <input type="text" id="bgUrl" placeholder="https://… o /ruta/local.jpg">
+    </div>
+  </details>
+
+  <details open>
+    <summary>Log NUI</summary>
+    <div class="sec">
+      <div id="log"></div>
+      <div class="hint"><span style="color:var(--accent-2)">→</span> mensaje enviado al UI · <span style="color:#8fc38f">←</span> callback NUI del UI (fetch)</div>
+    </div>
+  </details>
+</aside>
+
+<main id="main">
+  <div id="stage"><iframe id="nui" src="../build/index.html" title="NUI"></iframe></div>
+  <div id="res"></div>
+</main>
+
+<script>
+// ---------- Lua table-literal reader (enough for config files) ----------
+function luaTokens(src) {
+  const t = []; let i = 0; const n = src.length;
+  const longBracket = (at) => { const m = /^\[(=*)\[/.exec(src.slice(at, at + 20)); return m ? m[1].length : -1; };
+  while (i < n) {
+    const c = src[i];
+    if (/\s/.test(c)) { i++; continue; }
+    if (src.startsWith('--', i)) {
+      const lvl = longBracket(i + 2);
+      if (lvl >= 0) { const end = src.indexOf(']' + '='.repeat(lvl) + ']', i); i = end < 0 ? n : end + lvl + 2; }
+      else { const end = src.indexOf('\n', i); i = end < 0 ? n : end; }
+      continue;
+    }
+    if (c === '"' || c === "'") {
+      let j = i + 1, s = '';
+      while (j < n && src[j] !== c) {
+        if (src[j] === '\\') { const e = src[j + 1]; s += e === 'n' ? '\n' : e === 't' ? '\t' : e; j += 2; }
+        else s += src[j++];
+      }
+      t.push({ k: 'str', v: s }); i = j + 1; continue;
+    }
+    if (c === '[') {
+      const lvl = longBracket(i);
+      if (lvl >= 0) {
+        const close = ']' + '='.repeat(lvl) + ']'; const start = i + lvl + 2; const end = src.indexOf(close, start);
+        t.push({ k: 'str', v: src.slice(start, end).replace(/^\n/, '') }); i = end + close.length; continue;
+      }
+    }
+    let m;
+    if ((m = /^(0x[0-9a-fA-F]+|\d+\.?\d*(?:[eE][+-]?\d+)?|\.\d+)/.exec(src.slice(i, i + 40)))) {
+      t.push({ k: 'num', v: Number(m[1]) }); i += m[1].length; continue;
+    }
+    if ((m = /^[A-Za-z_]\w*/.exec(src.slice(i, i + 200)))) { t.push({ k: 'name', v: m[0] }); i += m[0].length; continue; }
+    if ((m = /^(\.\.\.|\.\.|==|~=|<=|>=)/.exec(src.slice(i, i + 3)))) { t.push({ k: 'sym', v: m[1] }); i += m[1].length; continue; }
+    t.push({ k: 'sym', v: c }); i++;
+  }
+  return t;
+}
+
+function readLua(src) {
+  const tk = luaTokens(src); let p = 0; const env = {};
+  const is = (k, v) => tk[p] && tk[p].k === k && (v === undefined || tk[p].v === v);
+  function skipExpr() { // unknown expression: consume to the next separator at depth 0
+    let d = 0;
+    while (p < tk.length) {
+      const x = tk[p];
+      if (x.k === 'sym' && '({['.includes(x.v)) d++;
+      else if (x.k === 'sym' && ')}]'.includes(x.v)) { if (d === 0) break; d--; }
+      else if (d === 0 && x.k === 'sym' && (x.v === ',' || x.v === ';')) break;
+      p++;
+    }
+    return null;
+  }
+  function value() {
+    const start = p; let v;
+    if (is('sym', '{')) v = table();
+    else if (is('str')) v = tk[p++].v;
+    else if (is('num')) v = tk[p++].v;
+    else if (is('sym', '-') && tk[p + 1] && tk[p + 1].k === 'num') { p++; v = -tk[p++].v; }
+    else if (is('name', 'true')) { p++; v = true; }
+    else if (is('name', 'false')) { p++; v = false; }
+    else if (is('name', 'nil')) { p++; v = null; }
+    else return skipExpr();
+    // trailing operators (e.g. 60 * 5) make it an expression we do not evaluate
+    if (!(is('sym', ',') || is('sym', ';') || is('sym', '}') || is('sym', ']') || p >= tk.length || tk[p].k === 'name')) { p = start; return skipExpr(); }
+    return v;
+  }
+  function table() {
+    p++; const arr = []; const obj = {};
+    while (p < tk.length && !is('sym', '}')) {
+      if (is('sym', '[') ) { p++; const key = value(); p++; /* ] */ p++; /* = */ obj[key] = value(); }
+      else if (is('name') && tk[p + 1] && tk[p + 1].k === 'sym' && tk[p + 1].v === '=' ) { const key = tk[p].v; p += 2; obj[key] = value(); }
+      else arr.push(value());
+      if (is('sym', ',') || is('sym', ';')) p++;
+    }
+    p++;
+    if (!Object.keys(obj).length) return arr;
+    arr.forEach((v, i) => { obj[i + 1] = v; });
+    return obj;
+  }
+  // top-level: NAME(.NAME)* = value
+  while (p < tk.length) {
+    if (is('name') && !['local', 'function', 'if', 'for', 'while', 'return'].includes(tk[p].v)) {
+      const path = [tk[p].v]; let q = p + 1;
+      while (tk[q] && tk[q].k === 'sym' && tk[q].v === '.' && tk[q + 1] && tk[q + 1].k === 'name') { path.push(tk[q + 1].v); q += 2; }
+      if (tk[q] && tk[q].k === 'sym' && tk[q].v === '=' && !(tk[q + 1] && tk[q + 1].k === 'sym' && tk[q + 1].v === '=')) {
+        p = q + 1; const v = value();
+        let o = env; for (let i = 0; i < path.length - 1; i++) o = (o[path[i]] ??= {});
+        if (v !== null) o[path[path.length - 1]] = v;
+        continue;
+      }
+    }
+    p++;
+  }
+  return env;
+}
+
+// ---------- harness state ----------
+const $ = (id) => document.getElementById(id);
+const iframe = $('nui');
+const ELEMENTS = ['levelprogress', 'microphone', 'stamina', 'horsehealth', 'horsestamina', 'health', 'hunger', 'thirst', 'sleep', 'stress', 'dirt', 'drunk', 'weather'];
+const RING = ['stamina', 'health', 'microphone'];
+const LABELS = { levelprogress: 'Nivel', microphone: 'Micrófono', stamina: 'Resistencia', horsehealth: 'Salud caballo', horsestamina: 'Resist. caballo', health: 'Salud', hunger: 'Hambre', thirst: 'Sed', sleep: 'Sueño', stress: 'Estrés', dirt: 'Suciedad', drunk: 'Ebriedad', weather: 'Clima (°)' };
+
+const state = {
+  show: true, weapon: false, dual: false, animTimer: null,
+  lua: { Config: {}, Locale: {} },
+  status: {
+    stamina: { inner: 80, outer: 65, innerGold: false, outerGold: false, innerGoldTime: 0, outerGoldTime: 0 },
+    health: { inner: 90, outer: 70, innerGold: false, outerGold: false, innerGoldTime: 0, outerGoldTime: 0 },
+    microphone: { inner: 0, outer: 50, innerGold: false, outerGold: false, innerGoldTime: 0, outerGoldTime: 0 },
+    hunger: 72, thirst: 58, sleep: 80, stress: 20, dirt: 35, drunk: 10, weather: 22, horsehealth: 90, horsestamina: 75,
+  },
+  active: Object.fromEntries(ELEMENTS.map((k) => [k, true])),
+};
+
+function log(dir, name, data) {
+  const el = $('log'); const line = document.createElement('div');
+  line.className = dir;
+  const arrow = dir === 'out' ? '→' : dir === 'in' ? '←' : '!';
+  line.textContent = `${new Date().toLocaleTimeString()} ${arrow} ${name}${data !== undefined ? ' ' + JSON.stringify(data).slice(0, 220) : ''}`;
+  el.appendChild(line); el.scrollTop = el.scrollHeight;
+  while (el.children.length > 200) el.firstChild.remove();
+}
+
+function send(action, data, quiet) {
+  if (!iframe.contentWindow) return;
+  iframe.contentWindow.postMessage({ action, data }, '*');
+  if (!quiet) log('out', action, data);
+}
+
+const nuiLS = () => { try { return iframe.contentWindow.localStorage; } catch { return null; } };
+
+// ---------- Lua config ----------
+async function loadLua() {
+  try {
+    const [cfgSrc, locSrc] = await Promise.all([
+      fetch('../../config/client_config.lua').then((r) => r.text()),
+      fetch('../../config/locale.lua').then((r) => r.text()),
+    ]);
+    const cfg = readLua(cfgSrc).Config || {};
+    const loc = readLua(locSrc);
+    state.lua.Config = cfg;
+    state.lua.Locale = (loc.Locales && loc.Locales[loc.Locale || 'en']) || {};
+    log('err', `config Lua cargado (${Object.keys(cfg).length} claves, ${Object.keys(state.lua.Locale).length} textos)`);
+    // Default active state follows ElementOrder, like the game does
+    if (Array.isArray(cfg.ElementOrder)) ELEMENTS.forEach((k) => { state.active[k] = cfg.ElementOrder.includes(k); });
+    renderStats();
+    buildThemeButtons();
+  } catch (e) {
+    log('err', 'no se pudo leer config Lua: ' + e.message);
+  }
+}
+
+function initialPayload() {
+  const C = state.lua.Config;
+  return {
+    config: C,
+    locale: state.lua.Locale,
+    hudColors: C.HudColors,
+    colorPresets: C.ColorPresets,
+    defaultTheme: C.DefaultHudTheme,
+    themeSettings: C.ThemeSettings,
+    ElementOrder: C.ElementOrder,
+  };
+}
+
+function sendAll() {
+  send('setInitialData', initialPayload());
+  send('setLocale', state.lua.Locale, true);
+  send('setVisible', state.show, true);
+  send('ShowUI', { show: state.show });
+  sendStatus();
+  sendLevel(true);
+  sendInfos(true);
+  sendWeapon(true);
+  // UpdateStatus in the UI rebuilds MetabolismData from its last rendered snapshot, so
+  // active flags sent in the same tick get reverted. Send them after a render.
+  setTimeout(() => ELEMENTS.forEach((k) => send('UpdateActiveStatus', { name: k, active: state.active[k] }, true)), 100);
+}
+
+// ---------- NUI iframe wiring ----------
+function hookIframe() {
+  const w = iframe.contentWindow;
+  // NUI callbacks (fetch https://<resource>/<name>) have no game behind them here: log and answer {}.
+  const realFetch = w.fetch.bind(w);
+  w.fetch = (url, opts) => {
+    const u = String(url);
+    const m = /^https:\/\/([^/]+)\/(.+)$/.exec(u);
+    if (m && !u.startsWith(location.origin)) {
+      let body; try { body = JSON.parse(opts && opts.body); } catch { body = opts && opts.body; }
+      log('in', m[2], body);
+      if (m[2] === 'closeSettingsMenu') setTimeout(() => send('ShowUI', { show: state.show }, true), 0);
+      return Promise.resolve(new Response('{}', { headers: { 'Content-Type': 'application/json' } }));
+    }
+    return realFetch(url, opts);
+  };
+  w.addEventListener('keydown', (e) => { if (e.key === 'Escape') log('in', 'keydown Escape'); });
+  sendAll();
+  setTimeout(buildThemeButtons, 200);
+  // The UI restores its own state from localStorage shortly after mount and overwrites
+  // the active flags, so push them again once it has settled.
+  setTimeout(() => ELEMENTS.forEach((k) => send('UpdateActiveStatus', { name: k, active: state.active[k] }, true)), 900);
+}
+iframe.addEventListener('load', () => setTimeout(hookIframe, 150));
+
+// ---------- controls ----------
+function toggle(btn, on, labelOn, labelOff) {
+  btn.classList.toggle('on', on);
+  if (labelOn) btn.textContent = on ? labelOn : labelOff;
+}
+
+$('btnShow').onclick = () => { state.show = !state.show; toggle($('btnShow'), state.show, 'HUD visible', 'HUD oculto'); send('setVisible', state.show, true); send('ShowUI', { show: state.show }); };
+$('btnSettings').onclick = () => send('openSettingsMenu', {});
+$('btnReloadLua').onclick = async () => { await loadLua(); sendAll(); };
+$('btnReloadUI').onclick = () => iframe.contentWindow.location.reload();
+// Same path as in game: the UI clears its own storage, reloads and calls back casResetDone.
+$('btnResetNui').onclick = () => {
+  send('casResetStorage', {});
+  iframe.addEventListener('load', () => setTimeout(buildThemeButtons, 200), { once: true });
+};
+$('btnReset').onclick =() => { const ls = nuiLS(); if (ls) ls.clear(); log('err', 'localStorage del UI borrado'); iframe.contentWindow.location.reload(); };
+
+function buildThemeButtons() {
+  const ls = nuiLS();
+  const hud = (ls && ls.getItem('hud_theme')) || state.lua.Config.DefaultHudTheme || 'western';
+  const head = (ls && ls.getItem('head_part_theme')) || state.lua.Config.DefaultHeadPartTheme || 'minimal';
+  const names = state.lua.Config.ThemeSettings || {};
+  $('hudThemes').innerHTML = '';
+  ['western', 'minimal', 'wave'].forEach((t) => {
+    const b = document.createElement('button');
+    b.textContent = (names[t] && names[t].name) || t;
+    b.title = (names[t] && names[t].description) || '';
+    b.classList.toggle('on', t === hud);
+    b.onclick = () => setTheme('hud_theme', t);
+    $('hudThemes').appendChild(b);
+  });
+  $('headThemes').innerHTML = '';
+  ['western', 'minimal'].forEach((t) => {
+    const b = document.createElement('button');
+    b.textContent = t === 'western' ? 'Western' : 'Minimalista';
+    b.classList.toggle('on', t === head);
+    b.onclick = () => setTheme('head_part_theme', t);
+    $('headThemes').appendChild(b);
+  });
+  const vis = ls ? ls.getItem('head_part_visible') : null;
+  toggle($('btnHead'), vis === null ? true : vis !== 'false', 'Parte superior visible', 'Parte superior oculta');
+}
+
+// The UI reads its themes from localStorage on mount, so switching = write + reload.
+function setTheme(key, value) {
+  const ls = nuiLS(); if (!ls) return;
+  ls.setItem(key, value);
+  log('err', `${key} = ${value}`);
+  iframe.contentWindow.location.reload();
+  iframe.addEventListener('load', () => setTimeout(buildThemeButtons, 200), { once: true });
+}
+$('btnHead').onclick = () => {
+  const ls = nuiLS(); if (!ls) return;
+  const cur = ls.getItem('head_part_visible');
+  ls.setItem('head_part_visible', String(cur === 'false'));
+  iframe.contentWindow.location.reload();
+  iframe.addEventListener('load', () => setTimeout(buildThemeButtons, 200), { once: true });
+};
+
+// ---------- status sliders ----------
+function renderStats() {
+  const box = $('stats'); box.innerHTML = '';
+  ELEMENTS.filter((k) => k !== 'levelprogress').forEach((k) => {
+    const row = document.createElement('div'); row.className = 'stat';
+    const cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = state.active[k];
+    cb.title = 'Activo (UpdateActiveStatus)';
+    cb.onchange = () => { state.active[k] = cb.checked; send('UpdateActiveStatus', { name: k, active: cb.checked }); };
+    const name = document.createElement('span'); name.textContent = LABELS[k];
+    row.append(cb, name);
+    if (RING.includes(k)) {
+      row.append(document.createElement('span'), document.createElement('span'));
+      box.appendChild(row);
+      ['outer', 'inner'].forEach((part) => {
+        const sub = document.createElement('div'); sub.className = 'sub';
+        const lab = document.createElement('label'); lab.textContent = part === 'outer' ? 'anillo' : 'núcleo';
+        const r = document.createElement('input'); r.type = 'range'; r.min = 0; r.max = 100; r.value = state.status[k][part];
+        const val = document.createElement('span'); val.className = 'val'; val.textContent = r.value;
+        r.oninput = () => { state.status[k][part] = +r.value; val.textContent = r.value; sendStatus(true); };
+        r.dataset.key = k; r.dataset.part = part;
+        sub.append(lab, r, val); row.appendChild(sub);
+      });
+      return;
+    }
+    const r = document.createElement('input'); r.type = 'range';
+    r.min = k === 'weather' ? -20 : 0; r.max = k === 'weather' ? 50 : 100; r.value = state.status[k];
+    const val = document.createElement('span'); val.className = 'val'; val.textContent = r.value;
+    r.oninput = () => { state.status[k] = +r.value; val.textContent = r.value; sendStatus(true); };
+    r.dataset.key = k;
+    row.append(r, val); box.appendChild(row);
+  });
+}
+
+function syncSliders() {
+  document.querySelectorAll('#stats input[type=range]').forEach((r) => {
+    const v = r.dataset.part ? state.status[r.dataset.key][r.dataset.part] : state.status[r.dataset.key];
+    r.value = v; r.nextElementSibling.textContent = Math.round(v);
+  });
+}
+
+let statusLogThrottle = 0;
+function sendStatus(fromSlider) {
+  const now = Date.now();
+  const quiet = fromSlider && now - statusLogThrottle < 600;
+  if (!quiet) statusLogThrottle = now;
+  send('UpdateStatus', JSON.parse(JSON.stringify(state.status)), quiet);
+}
+
+function setAll(v) {
+  Object.keys(state.status).forEach((k) => {
+    if (k === 'weather') return;
+    if (typeof state.status[k] === 'object') { if (k !== 'microphone') { state.status[k].inner = v; state.status[k].outer = v; } }
+    else state.status[k] = k === 'stress' || k === 'drunk' || k === 'dirt' ? 100 - v : v;
+  });
+  syncSliders(); sendStatus();
+}
+$('btnFull').onclick = () => setAll(100);
+$('btnLow').onclick = () => setAll(12);
+$('btnGold').onclick = () => {
+  const on = !state.status.stamina.innerGold;
+  ['stamina', 'health'].forEach((k) => Object.assign(state.status[k], { innerGold: on, outerGold: on, innerGoldTime: on ? 300 : 0, outerGoldTime: on ? 300 : 0 }));
+  toggle($('btnGold'), on); sendStatus();
+};
+$('btnAnimate').onclick = () => {
+  if (state.animTimer) { clearInterval(state.animTimer); state.animTimer = null; toggle($('btnAnimate'), false); return; }
+  toggle($('btnAnimate'), true);
+  const drift = (v, lo = 0, hi = 100) => Math.max(lo, Math.min(hi, v + (Math.random() - 0.5) * 14));
+  state.animTimer = setInterval(() => {
+    for (const k of Object.keys(state.status)) {
+      const s = state.status[k];
+      if (typeof s === 'object') { s.outer = drift(s.outer); s.inner = k === 'microphone' ? (Math.random() > 0.6 ? 100 : 0) : drift(s.inner); }
+      else state.status[k] = k === 'weather' ? drift(s, -20, 50) : drift(s);
+    }
+    syncSliders(); sendStatus(true);
+  }, 700);
+};
+
+// ---------- level / infos / weapon ----------
+let prevLevel = null;
+function sendLevel(quiet) {
+  const level = +$('lvl').value, xp = +$('xp').value;
+  send('UpdateLevelProgress', { level, xp, previousLevel: prevLevel?.level ?? level, previousXP: prevLevel?.xp ?? xp }, quiet);
+  prevLevel = { level, xp };
+}
+function sendInfos(quiet) { send('UpdateHudInfos', { id: +$('pid').value, money: +$('money').value, gold: +$('gold').value }, quiet); }
+function weapons() {
+  const w = [{ hand: 'right', weaponName: 'WEAPON_REVOLVER_CATTLEMAN', weaponHash: -169101681, weaponGroup: -1101297303, ammoInClip: 4, totalAmmo: 36 }];
+  if (state.dual) w.push({ hand: 'left', weaponName: 'WEAPON_REVOLVER_SCHOFIELD', weaponHash: 2075992054, weaponGroup: -1101297303, ammoInClip: 0, totalAmmo: 0 });
+  return w;
+}
+function sendWeapon(quiet) { send('UpdateWeaponData', { visible: state.weapon, weapons: weapons() }, quiet); }
+['lvl', 'xp'].forEach((id) => $(id).addEventListener('change', () => sendLevel()));
+['pid', 'money', 'gold'].forEach((id) => $(id).addEventListener('change', () => sendInfos()));
+$('btnInfos').onclick = () => { sendInfos(); sendLevel(); };
+$('btnWeapon').onclick = () => { state.weapon = !state.weapon; toggle($('btnWeapon'), state.weapon, 'Arma: on', 'Arma: off'); sendWeapon(); };
+$('btnDual').onclick = () => { state.dual = !state.dual; toggle($('btnDual'), state.dual); if (state.weapon) sendWeapon(); };
+
+// ---------- stage: resolution + background ----------
+const BGS = {
+  desert: 'linear-gradient(180deg,#f2a65a 0%,#d9774a 38%,#8a4b36 62%,#4a2e22 100%)',
+  forest: 'linear-gradient(180deg,#9fb8c4 0%,#6f8f7a 40%,#34503a 70%,#1d2e20 100%)',
+  snow: 'linear-gradient(180deg,#e9eef2 0%,#cdd7de 50%,#aab7bf 100%)',
+  dark: '#0b0a08',
+  checker: 'repeating-conic-gradient(#555 0 25%,#777 0 50%) 0 0/32px 32px',
+};
+function layout() {
+  const main = $('main'), stage = $('stage'); const sel = $('resSel').value;
+  const W = main.clientWidth, H = main.clientHeight;
+  let w = W, h = H;
+  if (sel !== 'fit') [w, h] = sel.split('x').map(Number);
+  const s = Math.min(W / w, H / h);
+  stage.style.width = w + 'px'; stage.style.height = h + 'px';
+  stage.style.transform = `translate(${(W - w * s) / 2}px, ${(H - h * s) / 2}px) scale(${s})`;
+  $('res').textContent = `${w}×${h} @ ${Math.round(s * 100)}%`;
+}
+function applyBg() {
+  const url = $('bgUrl').value.trim();
+  $('stage').style.background = url ? `center/cover no-repeat url("${url}")` : BGS[$('bgSel').value];
+}
+$('resSel').onchange = layout; window.addEventListener('resize', layout);
+$('bgSel').onchange = applyBg; $('bgUrl').onchange = applyBg;
+
+layout(); applyBg(); renderStats();
+loadLua().then(() => { if (iframe.contentWindow && iframe.contentDocument?.readyState === 'complete') sendAll(); });
+</script>
+</body>
+</html>
