@@ -1,0 +1,739 @@
+//@version=6
+// ════════════════════════════════════════════════════════════════════════════════
+//  LE Model Pro — Levels + EMA 8   (v2)
+//  Secuencia: LEVEL BREAKOUT → TREND CONFIRMATION → EMA 8 PULLBACK / LEVEL RETEST → ENTRY → TIGHT STOP
+//  • Sin request.security(): todo se calcula con las velas del gráfico → sin lookahead ni datos futuros.
+//  • Modo por defecto: cierre de vela confirmado (barstate.isconfirmed) → las señales confirmadas no repintan.
+//  Novedades v2: zonas de riesgo/beneficio, break-even opcional, filtro VWAP opcional, nota de calidad
+//  de la señal, estadísticas de la sesión y del gráfico (aciertos, R neto), alertas de salida y panel nuevo.
+// ════════════════════════════════════════════════════════════════════════════════
+indicator("LE Model Pro — Levels + EMA 8", shorttitle = "LE Model Pro", overlay = true, max_lines_count = 500, max_labels_count = 500, max_boxes_count = 500)
+
+// ───────────────────────────── INPUTS ─────────────────────────────
+G_SES = "1 · Sessions"
+tz            = input.string("America/New_York", "Exchange timezone", group = G_SES)
+pmSession     = input.session("0400-0930", "Premarket session", group = G_SES)
+rthSession    = input.session("0930-1600", "Regular session", group = G_SES)
+tfRecommended = input.string("10", "Recommended timeframe (minutes)", group = G_SES, tooltip = "A warning is shown when the chart uses a different timeframe.")
+showPmBg      = input.bool(true, "Shade the premarket", group = G_SES)
+
+G_LVL = "2 · Key levels"
+usePMH          = input.bool(true, "PMH  (Premarket High)", inline = "pmh", group = G_LVL)
+colPMH          = input.color(color.new(#22c55e, 0), "", inline = "pmh", group = G_LVL)
+usePML          = input.bool(true, "PML  (Premarket Low)", inline = "pml", group = G_LVL)
+colPML          = input.color(color.new(#ef4444, 0), "", inline = "pml", group = G_LVL)
+usePDH          = input.bool(true, "PDH  (Previous Day High)", inline = "pdh", group = G_LVL)
+colPDH          = input.color(color.new(#14b8a6, 0), "", inline = "pdh", group = G_LVL)
+usePDL          = input.bool(true, "PDL  (Previous Day Low)", inline = "pdl", group = G_LVL)
+colPDL          = input.color(color.new(#f97316, 0), "", inline = "pdl", group = G_LVL)
+lvlStyleStr     = input.string("Dashed", "Line style", options = ["Solid", "Dashed", "Dotted"], group = G_LVL)
+lvlWidth        = input.int(1, "Line width", minval = 1, maxval = 4, group = G_LVL)
+showLevelLabels = input.bool(true, "Show level labels", group = G_LVL)
+showHistory     = input.bool(true, "Keep previous days' level lines", group = G_LVL)
+
+G_BRK = "3 · Breakout confirmation"
+brkMode         = input.string("Confirmed close", "Validation", options = ["Confirmed close", "Intrabar (provisional)"], group = G_BRK, tooltip = "Confirmed close (default): the 10-min candle must CLOSE beyond the level. Intrabar: high/low beyond the level — provisional on the live candle, it can disappear before the candle closes.")
+brkBufferTicks  = input.int(0, "Breakout buffer (ticks beyond level)", minval = 0, group = G_BRK, tooltip = "Breakout sensitivity. 0 = any close beyond the level.")
+brkRthOnly      = input.bool(true, "Detect breakouts only in the regular session", group = G_BRK)
+useGapPDH       = input.bool(true, "Open above PDH activates bullish context", group = G_BRK)
+useGapPDL       = input.bool(false, "Open below PDL activates bearish context (optional, not in source)", group = G_BRK)
+showBrkLabels   = input.bool(true, "Show breakout labels", group = G_BRK)
+
+G_EMA = "4 · EMA / VWAP"
+emaLen     = input.int(8, "EMA length", minval = 1, group = G_EMA)
+emaSrc     = input.source(close, "EMA source", group = G_EMA)
+showEma    = input.bool(true, "Show EMA", inline = "ema", group = G_EMA)
+colEma     = input.color(color.new(#a855f7, 0), "", inline = "ema", group = G_EMA)
+emaColorBy = input.bool(true, "Color the EMA by its slope", group = G_EMA)
+showVwap   = input.bool(false, "Show VWAP", inline = "vw", group = G_EMA)
+colVwap    = input.color(color.new(#eab308, 0), "", inline = "vw", group = G_EMA)
+atrLen     = input.int(14, "ATR length (tolerances / filters / targets)", minval = 1, group = G_EMA)
+
+G_ENT = "5 · Entries"
+useE        = input.bool(true, "E Entry — pullback to EMA 8", group = G_ENT)
+useL        = input.bool(true, "L Entry — retest of the broken level", group = G_ENT)
+touchMode   = input.string("Exact Touch", "Touch / proximity mode", options = ["Exact Touch", "Tick Tolerance", "Percentage Tolerance", "ATR Tolerance"], group = G_ENT, tooltip = "Exact Touch: the candle range reaches the EMA (or level). The other modes also accept candles that come within the tolerance.")
+tolTicks    = input.int(5, "Tick tolerance", minval = 0, group = G_ENT)
+tolPct      = input.float(0.05, "Percentage tolerance (%)", minval = 0.0, step = 0.01, group = G_ENT)
+tolAtrMult  = input.float(0.15, "ATR tolerance (× ATR)", minval = 0.0, step = 0.05, group = G_ENT)
+rejMode     = input.string("None", "E Entry rejection confirmation", options = ["None", "Bullish/Bearish candle", "Close in favorable half", "Candle + favorable half"], group = G_ENT, tooltip = "Optional. Stricter settings = fewer, cleaner signals (good for beginners).")
+lReaction   = input.string("Bullish/Bearish candle", "L Entry reaction", options = ["None", "Bullish/Bearish candle", "Close in favorable half", "Candle + favorable half"], group = G_ENT)
+entryRthOnly   = input.bool(true, "Entries only in the regular session", group = G_ENT)
+useEntryWindow = input.bool(false, "Restrict entries to a time window", group = G_ENT)
+entryWindow    = input.session("0940-1530", "Entry window", group = G_ENT)
+
+G_RRM = "6 · Multiple entries / rearming"
+firstPullbackOnly = input.bool(false, "First EMA pullback only (per setup)", group = G_RRM)
+rearmAtr          = input.float(0.0, "Extra distance from EMA to rearm (× ATR)", minval = 0.0, step = 0.05, group = G_RRM, tooltip = "After an E entry, price must leave the EMA zone (no touch) before a new E entry. This adds extra distance. 0 = one candle away from the EMA is enough.")
+cooldownBars      = input.int(0, "Cooldown: minimum candles between entries (0 = off)", minval = 0, group = G_RRM)
+maxEntriesPerDay  = input.int(0, "Maximum entries per session (0 = off)", minval = 0, group = G_RRM)
+allowMultipleL    = input.bool(false, "Allow more than one L Entry per breakout", group = G_RRM)
+oneTradeAtATime   = input.bool(false, "No new entry while a trade is still open", group = G_RRM)
+
+G_INV = "7 · Setup invalidation"
+resetDaily     = input.bool(true, "Reset context at each new session", group = G_INV)
+invLevelLoss   = input.bool(false, "Invalidate when price closes back through the broken level", group = G_INV)
+invEmaBars     = input.int(0, "Invalidate after N consecutive closes on the wrong side of EMA (0 = off)", minval = 0, group = G_INV)
+invMaxBars     = input.int(0, "Maximum candles a setup stays active (0 = off)", minval = 0, group = G_INV)
+maxBarsToEntry = input.int(0, "Maximum candles between breakout and entry (0 = off)", minval = 0, group = G_INV)
+
+G_FLT = "8 · Optional filters (off by default)"
+maxDistAtr = input.float(0.0, "Max distance close ↔ EMA (× ATR, 0 = off)", minval = 0.0, step = 0.1, group = G_FLT)
+useSlope   = input.bool(false, "EMA slope filter (EMA rising for buys / falling for sells)", group = G_FLT)
+useVwapFlt = input.bool(false, "VWAP filter (buys above VWAP / sells below VWAP)", group = G_FLT)
+minAtrPct  = input.float(0.0, "Minimum volatility: ATR as % of price (0 = off)", minval = 0.0, step = 0.01, group = G_FLT)
+minRiskAtr = input.float(0.0, "Skip entries whose stop is too tight (risk < × ATR, 0 = off)", minval = 0.0, step = 0.05, group = G_FLT)
+maxRiskAtr = input.float(0.0, "Skip entries whose stop is too wide (risk > × ATR, 0 = off)", minval = 0.0, step = 0.1, group = G_FLT)
+
+G_RSK = "9 · Stop loss / targets"
+slBufMode   = input.string("Ticks", "Stop buffer unit", options = ["Ticks", "Percentage"], group = G_RSK)
+slBufTicks  = input.int(1, "Stop buffer (ticks)", minval = 0, group = G_RSK)
+slBufPct    = input.float(0.02, "Stop buffer (%)", minval = 0.0, step = 0.01, group = G_RSK)
+useTP1      = input.bool(false, "Target 1:1 (optional, not in source)", group = G_RSK)
+useTP2      = input.bool(true, "Target 1:2 (optional, not in source)", group = G_RSK)
+useTP3      = input.bool(false, "Target 1:3 (optional, not in source)", group = G_RSK)
+useAtrTP    = input.bool(false, "ATR target (optional, not in source)", inline = "atrtp", group = G_RSK)
+atrTPMult   = input.float(2.0, "× ATR", minval = 0.1, step = 0.1, inline = "atrtp", group = G_RSK)
+useBE       = input.bool(false, "Move stop to break-even (optional, not in source)", inline = "be", group = G_RSK)
+beAtR       = input.float(1.0, "at R", minval = 0.1, step = 0.1, inline = "be", group = G_RSK)
+useEmaExit  = input.bool(false, "Exit on close across EMA (optional, not in source)", group = G_RSK)
+showZones     = input.bool(true, "Risk / reward zones", group = G_RSK)
+showEntryLine = input.bool(true, "Entry line", group = G_RSK)
+showSLLine    = input.bool(true, "Stop loss line", group = G_RSK)
+showTPLines   = input.bool(true, "Target lines", group = G_RSK)
+tradeLineBars = input.int(20, "Max length of a trade (candles)", minval = 1, group = G_RSK)
+
+G_VIS = "10 · Visuals"
+showSignals     = input.bool(true, "Show BUY / SELL arrows", group = G_VIS)
+showTradeLabels = input.bool(true, "Show entry details (price, stop, risk, quality)", group = G_VIS)
+showExitMarks   = input.bool(true, "Show stop / target / exit marks (with R result)", group = G_VIS)
+showInvalid     = input.bool(true, "Show setup invalidation marks", group = G_VIS)
+showSetupMarks  = input.bool(false, "Show active setup markers", group = G_VIS)
+showBg          = input.bool(false, "Bullish / bearish background", group = G_VIS)
+colBuy          = input.color(color.new(#16a34a, 0), "BUY color", inline = "sig", group = G_VIS)
+colSell         = input.color(color.new(#dc2626, 0), "SELL color", inline = "sig", group = G_VIS)
+
+G_DSH = "11 · Dashboard"
+showDash  = input.bool(true, "Show dashboard", group = G_DSH)
+showStats = input.bool(true, "Show statistics", group = G_DSH, tooltip = "Results of the signals drawn on this chart, measured in R (1R = the risk of the trade). Informative only: no fees, no slippage.")
+dashPos   = input.string("Top Right", "Position", options = ["Top Right", "Top Left", "Bottom Right", "Bottom Left"], group = G_DSH)
+dashSize  = input.string("Small", "Text size", options = ["Tiny", "Small", "Normal"], group = G_DSH)
+
+G_ALR = "12 · Alerts"
+useDynAlerts = input.bool(true, "Detailed alerts (use 'Any alert() function call')", group = G_ALR)
+
+// ───────────────────────────── HELPERS ─────────────────────────────
+f_lineStyle(string s) =>
+    switch s
+        "Solid"  => line.style_solid
+        "Dotted" => line.style_dotted
+        => line.style_dashed
+
+f_pos(string p) =>
+    switch p
+        "Top Left"     => position.top_left
+        "Bottom Left"  => position.bottom_left
+        "Bottom Right" => position.bottom_right
+        => position.top_right
+
+f_size(string s) =>
+    switch s
+        "Tiny"   => size.tiny
+        "Normal" => size.normal
+        => size.small
+
+f_fmt(float v) =>
+    na(v) ? "—" : str.tostring(v, format.mintick)
+
+f_r(float v) =>
+    na(v) ? "—" : (v >= 0 ? "+" : "") + str.tostring(v, "#.##") + "R"
+
+f_stars(int n) =>
+    n >= 4 ? "★★★★" : n == 3 ? "★★★☆" : n == 2 ? "★★☆☆" : n == 1 ? "★☆☆☆" : "☆☆☆☆"
+
+lvlStyle = f_lineStyle(lvlStyleStr)
+cText    = color.new(color.white, 35)
+cMuted   = color.new(color.gray, 20)
+
+// ───────────────────────────── CORE SERIES ─────────────────────────────
+emaVal     = ta.ema(emaSrc, emaLen)
+atrVal     = ta.atr(atrLen)
+vwapVal    = ta.vwap(hlc3)
+emaRising  = emaVal > emaVal[1]
+emaFalling = emaVal < emaVal[1]
+
+inPM     = not na(time(timeframe.period, pmSession, tz))
+inRTH    = not na(time(timeframe.period, rthSession, tz))
+dayKey   = year(time, tz) * 10000 + month(time, tz) * 100 + dayofmonth(time, tz)
+newDay   = bar_index == 0 or dayKey != nz(dayKey[1])
+rthStart = inRTH and (newDay or not inRTH[1])
+
+isIntrabar = brkMode == "Intrabar (provisional)"
+// Confirmed mode: on the live candle nothing is decided until it closes.
+// (On historical candles barstate.isconfirmed is always true.)
+evalOK      = isIntrabar or barstate.isconfirmed
+provisional = isIntrabar and not barstate.isconfirmed
+
+// Tolerance used to decide whether a candle "touches" the EMA / level
+f_tol(float ref) =>
+    switch touchMode
+        "Exact Touch"          => 0.0
+        "Tick Tolerance"       => tolTicks * syminfo.mintick
+        "Percentage Tolerance" => ref * tolPct / 100.0
+        => atrVal * tolAtrMult
+
+// Optional rejection / reaction confirmation. dir = 1 bullish, -1 bearish
+f_reject(int dir, string mode) =>
+    bool candleOK = dir == 1 ? close > open : close < open
+    bool halfOK   = dir == 1 ? close >= (high + low) / 2.0 : close <= (high + low) / 2.0
+    switch mode
+        "None"                    => true
+        "Bullish/Bearish candle"  => candleOK
+        "Close in favorable half" => halfOK
+        => candleOK and halfOK
+
+// ───────────────────────────── KEY LEVELS (PMH / PML / PDH / PDL) ─────────────────────────────
+var float pmHighRun  = na
+var float pmLowRun   = na
+var float rthHighRun = na
+var float rthLowRun  = na
+var float pmh        = na
+var float pml        = na
+var float pdh        = na
+var float pdl        = na
+var bool  pmFrozen   = false
+var bool  pmMissing  = false
+var bool  pmhDone    = false
+var bool  pmlDone    = false
+var bool  pdhDone    = false
+var bool  pdlDone    = false
+
+if newDay
+    // the regular session that just ended becomes the previous day
+    if not na(rthHighRun)
+        pdh := rthHighRun
+        pdl := rthLowRun
+    rthHighRun := na
+    rthLowRun  := na
+    pmHighRun  := na
+    pmLowRun   := na
+    pmh        := na
+    pml        := na
+    pmFrozen   := false
+    pmhDone    := false
+    pmlDone    := false
+    pdhDone    := false
+    pdlDone    := false
+
+// PMH / PML update live during premarket…
+if inPM and not pmFrozen
+    pmHighRun := na(pmHighRun) ? high : math.max(pmHighRun, high)
+    pmLowRun  := na(pmLowRun) ? low : math.min(pmLowRun, low)
+
+// …and freeze at the regular open
+if rthStart and not pmFrozen
+    pmh       := pmHighRun
+    pml       := pmLowRun
+    pmFrozen  := true
+    pmMissing := na(pmHighRun)
+
+if inRTH
+    rthHighRun := na(rthHighRun) ? high : math.max(rthHighRun, high)
+    rthLowRun  := na(rthLowRun) ? low : math.min(rthLowRun, low)
+
+pmhShown = pmFrozen ? pmh : pmHighRun
+pmlShown = pmFrozen ? pml : pmLowRun
+
+// ───────────────────────────── STATE MACHINE ─────────────────────────────
+var int    ctx            = 0      // 1 = bullish setup, -1 = bearish setup, 0 = neutral
+var string ctxLevel       = ""
+var float  ctxLevelPx     = na
+var color  ctxColor       = color.gray
+var int    ctxBar         = na
+var int    ctxTime        = na
+var bool   eArmed         = false
+var bool   lArmed         = false
+var bool   firstDone      = false
+var int    wrongSideCount = 0
+var int    entriesToday   = 0
+var int    lastEntryBar   = na
+var int    tDir           = 0      // open trade: 1 long, -1 short, 0 none (declared here: used by the entry filter)
+
+bool invalidatedNow = false
+
+if newDay
+    entriesToday := 0
+    if resetDaily
+        ctx        := 0
+        ctxLevel   := ""
+        ctxLevelPx := na
+        ctxBar     := na
+        ctxTime    := na
+
+// 1) Invalidation rules (configurable, the source does not define them exactly)
+if ctx != 0 and evalOK and not na(ctxBar) and bar_index > ctxBar
+    bool inv = false
+    if invLevelLoss and not na(ctxLevelPx)
+        inv := ctx == 1 ? close < ctxLevelPx : close > ctxLevelPx
+    if invEmaBars > 0
+        wrongSideCount := (ctx == 1 ? close < emaVal : close > emaVal) ? wrongSideCount + 1 : 0
+        if wrongSideCount >= invEmaBars
+            inv := true
+    if invMaxBars > 0 and bar_index - ctxBar > invMaxBars
+        inv := true
+    if inv
+        ctx            := 0
+        ctxLevel       := ""
+        ctxLevelPx     := na
+        ctxBar         := na
+        ctxTime        := na
+        invalidatedNow := true
+
+// 2) Level breakouts — they ACTIVATE a setup, they are never an entry by themselves
+brkBuf = brkBufferTicks * syminfo.mintick
+canBrk = (inRTH or not brkRthOnly) and evalOK
+upPx   = isIntrabar ? high : close
+dnPx   = isIntrabar ? low : close
+
+brkPMH = usePMH and canBrk and pmFrozen and not na(pmh) and not pmhDone and upPx > pmh + brkBuf
+brkPDH = usePDH and canBrk and not na(pdh) and not pdhDone and upPx > pdh + brkBuf
+gapPDH = usePDH and useGapPDH and rthStart and evalOK and not na(pdh) and not pdhDone and open > pdh
+brkPML = usePML and canBrk and pmFrozen and not na(pml) and not pmlDone and dnPx < pml - brkBuf
+brkPDL = usePDL and canBrk and not na(pdl) and not pdlDone and dnPx < pdl - brkBuf
+gapPDL = usePDL and useGapPDL and rthStart and evalOK and not na(pdl) and not pdlDone and open < pdl
+
+bullBreak = brkPMH or brkPDH or gapPDH
+bearBreak = brkPML or brkPDL or gapPDL
+// a huge candle that breaks both sides: keep the direction of the candle
+if bullBreak and bearBreak
+    if close >= open
+        bearBreak := false
+    else
+        bullBreak := false
+
+alBrkPMH = bullBreak and brkPMH
+alBrkPDH = bullBreak and (brkPDH or gapPDH)
+alBrkPML = bearBreak and brkPML
+alBrkPDL = bearBreak and (brkPDL or gapPDL)
+
+if bullBreak
+    if ctx == -1
+        invalidatedNow := true          // opposite breakout invalidates the bearish setup
+    string nm = brkPMH ? "PMH" : ""
+    float  px = brkPMH ? pmh : na
+    if brkPDH or gapPDH
+        nm := brkPMH ? "PMH+PDH" : gapPDH ? "PDH (gap open)" : "PDH"
+        px := brkPMH ? math.max(pmh, pdh) : pdh
+    pmhDone        := pmhDone or brkPMH
+    pdhDone        := pdhDone or brkPDH or gapPDH
+    ctx            := 1
+    ctxLevel       := nm
+    ctxLevelPx     := px
+    ctxColor       := brkPMH ? colPMH : colPDH
+    ctxBar         := bar_index
+    ctxTime        := time
+    eArmed         := true
+    lArmed         := true
+    firstDone      := false
+    wrongSideCount := 0
+
+if bearBreak
+    if ctx == 1
+        invalidatedNow := true
+    string nm = brkPML ? "PML" : ""
+    float  px = brkPML ? pml : na
+    if brkPDL or gapPDL
+        nm := brkPML ? "PML+PDL" : gapPDL ? "PDL (gap open)" : "PDL"
+        px := brkPML ? math.min(pml, pdl) : pdl
+    pmlDone        := pmlDone or brkPML
+    pdlDone        := pdlDone or brkPDL or gapPDL
+    ctx            := -1
+    ctxLevel       := nm
+    ctxLevelPx     := px
+    ctxColor       := brkPML ? colPML : colPDL
+    ctxBar         := bar_index
+    ctxTime        := time
+    eArmed         := true
+    lArmed         := true
+    firstDone      := false
+    wrongSideCount := 0
+
+// 3) Entries — only inside an active level-based setup
+inEntryWin    = useEntryWindow ? not na(time(timeframe.period, entryWindow, tz)) : true
+sessOK        = (inRTH or not entryRthOnly) and inEntryWin
+distOK        = maxDistAtr <= 0 or math.abs(close - emaVal) <= maxDistAtr * atrVal
+volOK         = minAtrPct <= 0 or atrVal / close * 100.0 >= minAtrPct
+cooldownOK    = cooldownBars <= 0 or na(lastEntryBar) or bar_index - lastEntryBar >= cooldownBars
+maxOK         = maxEntriesPerDay <= 0 or entriesToday < maxEntriesPerDay
+afterBrk      = not na(ctxBar) and bar_index > ctxBar      // never on the breakout candle itself
+timeToEntryOK = maxBarsToEntry <= 0 or (not na(ctxBar) and bar_index - ctxBar <= maxBarsToEntry)
+flatOK        = not oneTradeAtATime or tDir == 0
+commonOK      = evalOK and sessOK and distOK and volOK and cooldownOK and maxOK and afterBrk and timeToEntryOK and flatOK
+
+// stop distance of a would-be entry on this candle (stop goes beyond the entry candle)
+slBuf      = slBufMode == "Ticks" ? slBufTicks * syminfo.mintick : close * slBufPct / 100.0
+riskLong   = close - (low - slBuf)
+riskShort  = (high + slBuf) - close
+f_riskOK(float r) =>
+    (minRiskAtr <= 0 or r >= minRiskAtr * atrVal) and (maxRiskAtr <= 0 or r <= maxRiskAtr * atrVal)
+
+tolE = f_tol(emaVal)
+tolL = na(ctxLevelPx) ? 0.0 : f_tol(ctxLevelPx)
+
+// E Entry: price above (below) the EMA pulls back to it
+touchEBull = low - emaVal <= tolE
+touchEBear = emaVal - high <= tolE
+vwapBullOK = not useVwapFlt or close > vwapVal
+vwapBearOK = not useVwapFlt or close < vwapVal
+eBull = useE and ctx == 1 and commonOK and eArmed and not firstDone and close > emaVal and touchEBull and (not useSlope or emaRising) and vwapBullOK and f_reject(1, rejMode) and f_riskOK(riskLong)
+eBear = useE and ctx == -1 and commonOK and eArmed and not firstDone and close < emaVal and touchEBear and (not useSlope or emaFalling) and vwapBearOK and f_reject(-1, rejMode) and f_riskOK(riskShort)
+
+// L Entry: price comes back to the broken level and it holds
+touchLBull = not na(ctxLevelPx) and low - ctxLevelPx <= tolL
+touchLBear = not na(ctxLevelPx) and ctxLevelPx - high <= tolL
+lBull = useL and ctx == 1 and commonOK and lArmed and touchLBull and close > ctxLevelPx and vwapBullOK and f_reject(1, lReaction) and f_riskOK(riskLong)
+lBear = useL and ctx == -1 and commonOK and lArmed and touchLBear and close < ctxLevelPx and vwapBearOK and f_reject(-1, lReaction) and f_riskOK(riskShort)
+
+buySig  = eBull or lBull
+sellSig = eBear or lBear
+
+// "potential setup": the pullback is happening but the entry is not confirmed (yet)
+potentialBull = useE and ctx == 1 and eArmed and not firstDone and afterBrk and sessOK and touchEBull and not buySig
+potentialBear = useE and ctx == -1 and eArmed and not firstDone and afterBrk and sessOK and touchEBear and not sellSig
+
+// Signal quality (informative, it does not filter anything): 1 point for each confluence
+f_quality(int dir) =>
+    int q = 0
+    q += (dir == 1 ? emaRising : emaFalling) ? 1 : 0
+    q += (dir == 1 ? close > vwapVal : close < vwapVal) ? 1 : 0
+    q += f_reject(dir, "Candle + favorable half") ? 1 : 0
+    q += (dir == 1 ? (eBull and lBull) : (eBear and lBear)) ? 1 : 0
+    q
+
+// 4) Rearming: a new E entry needs a NEW pullback (price must leave the EMA zone first)
+if buySig or sellSig
+    entriesToday += 1
+    lastEntryBar := bar_index
+    if eBull or eBear
+        eArmed := false
+        if firstPullbackOnly
+            firstDone := true
+    if lBull or lBear
+        lArmed := false
+else if ctx != 0 and evalOK
+    awayE = ctx == 1 ? low - emaVal > tolE + rearmAtr * atrVal : emaVal - high > tolE + rearmAtr * atrVal
+    if awayE
+        eArmed := true
+    if allowMultipleL and not na(ctxLevelPx)
+        awayL = ctx == 1 ? low - ctxLevelPx > tolL + rearmAtr * atrVal : ctxLevelPx - high > tolL + rearmAtr * atrVal
+        if awayL
+            lArmed := true
+
+// ───────────────────────────── STOP LOSS / TRADE TRACKING ─────────────────────────────
+var int    tBar       = na
+var float  tEntry     = na
+var float  tSL        = na
+var float  tRisk      = na
+var float  tFinalTP   = na
+var bool   tBEdone    = false
+var float  tTP1       = na
+var float  tTP2       = na
+var float  tTP3       = na
+var float  tTPA       = na
+var line   lnEntry    = na
+var line   lnSL       = na
+var line   lnTP1      = na
+var line   lnTP2      = na
+var line   lnTP3      = na
+var line   lnTPA      = na
+var box    bxRisk     = na
+var box    bxReward   = na
+var string lastSignal = "—"
+var string lastType   = "—"
+var float  lastEntry  = na
+var float  lastSL     = na
+var float  lastRisk   = na
+var float  lastRiskPc = na
+var int    lastQual   = na
+var string rrText     = "TP off"
+var string lastResult = "—"
+
+// statistics (whole chart and current session), in R
+var int   stTrades = 0
+var int   stWins   = 0
+var float stNetR   = 0.0
+var int   dTrades  = 0
+var int   dWins    = 0
+var float dNetR    = 0.0
+
+if newDay
+    dTrades := 0
+    dWins   := 0
+    dNetR   := 0.0
+
+f_far(int dir, float cur, float v) =>
+    na(v) ? cur : na(cur) ? v : dir == 1 ? math.max(cur, v) : math.min(cur, v)
+
+f_ext(line l) =>
+    if not na(l)
+        line.set_x2(l, bar_index)
+
+f_extB(box b) =>
+    if not na(b)
+        box.set_right(b, bar_index)
+
+bool exitSL  = false
+bool exitTP  = false
+bool exitEMA = false
+bool exitBE  = false
+float exitR  = na
+
+// manage the open trade (lines, zones, break-even, exit marks, statistics)
+if tDir != 0 and not na(tBar) and bar_index > tBar and evalOK
+    f_ext(lnEntry)
+    f_ext(lnSL)
+    f_ext(lnTP1)
+    f_ext(lnTP2)
+    f_ext(lnTP3)
+    f_ext(lnTPA)
+    f_extB(bxRisk)
+    f_extB(bxReward)
+    hitSL   = tDir == 1 ? low <= tSL : high >= tSL
+    hitTP   = not na(tFinalTP) and (tDir == 1 ? high >= tFinalTP : low <= tFinalTP)
+    emaOut  = useEmaExit and (tDir == 1 ? close < emaVal : close > emaVal)
+    timeUp  = bar_index - tBar >= tradeLineBars
+    if hitSL or hitTP or emaOut or timeUp or newDay
+        // if stop and target are both inside the same candle, assume the stop (conservative)
+        float exitPx = hitSL ? tSL : hitTP ? tFinalTP : newDay ? close[1] : close
+        exitR := tRisk > 0 ? (exitPx - tEntry) * tDir / tRisk : 0.0
+        exitBE  := hitSL and tBEdone
+        exitSL  := hitSL and not tBEdone
+        exitTP  := hitTP and not hitSL
+        exitEMA := emaOut and not hitSL and not hitTP
+        stTrades += 1
+        dTrades  += 1
+        stWins   += exitR > 0 ? 1 : 0
+        dWins    += exitR > 0 ? 1 : 0
+        stNetR   += exitR
+        dNetR    += exitR
+        string why = exitBE ? "BE" : hitSL ? "SL" : hitTP ? "TP" : emaOut ? "EXIT EMA" : "TIME"
+        lastResult := why + " " + f_r(exitR)
+        if showExitMarks
+            color wc = exitR > 0 ? colBuy : exitR < 0 ? colSell : color.gray
+            label.new(bar_index, tDir == 1 ? (hitSL ? low : high) : (hitSL ? high : low), why + "  " + f_r(exitR), style = tDir == 1 ? (hitSL ? label.style_label_up : label.style_label_down) : (hitSL ? label.style_label_down : label.style_label_up), color = color.new(wc, 70), textcolor = color.white, size = size.tiny)
+        tDir := 0
+    else if useBE and not tBEdone and tRisk > 0
+        // break-even: once price reaches +beAtR × risk, the stop moves to the entry price
+        bool reached = tDir == 1 ? high >= tEntry + beAtR * tRisk : low <= tEntry - beAtR * tRisk
+        if reached
+            tSL     := tEntry
+            tBEdone := true
+            if not na(lnSL)
+                line.set_y1(lnSL, tSL)
+                line.set_y2(lnSL, tSL)
+                line.set_color(lnSL, color.gray)
+            if not na(bxRisk)
+                box.set_bgcolor(bxRisk, color.new(color.gray, 88))
+
+// new entry: stop below/above THE ENTRY CANDLE (not the day's high/low)
+if buySig or sellSig
+    int   dir   = buySig ? 1 : -1
+    float entry = close
+    float sl    = dir == 1 ? low - slBuf : high + slBuf
+    float risk  = math.abs(entry - sl)
+    string typ  = (eBull or eBear) and (lBull or lBear) ? "E+L" : (eBull or eBear) ? "E" : "L"
+    int   qual  = f_quality(dir)
+    tDir    := dir
+    tBar    := bar_index
+    tEntry  := entry
+    tSL     := sl
+    tRisk   := risk
+    tBEdone := false
+    tTP1    := useTP1 ? entry + dir * risk : na
+    tTP2    := useTP2 ? entry + dir * risk * 2.0 : na
+    tTP3    := useTP3 ? entry + dir * risk * 3.0 : na
+    tTPA    := useAtrTP ? entry + dir * atrVal * atrTPMult : na
+    tFinalTP := f_far(dir, f_far(dir, f_far(dir, f_far(dir, na, tTP1), tTP2), tTP3), tTPA)
+    lastSignal := dir == 1 ? "BUY" : "SELL"
+    lastType   := typ == "E" ? "EMA (E)" : typ == "L" ? "Level (L)" : "EMA + Level"
+    lastEntry  := entry
+    lastSL     := sl
+    lastRisk   := risk
+    lastRiskPc := risk / entry * 100.0
+    lastQual   := qual
+    lastResult := "OPEN"
+    rrText     := na(tFinalTP) or risk <= 0 ? "TP off" : "1:" + str.tostring(math.abs(tFinalTP - entry) / risk, "#.##")
+    lnEntry := showEntryLine ? line.new(bar_index, entry, bar_index + 1, entry, color = color.new(color.white, 40), width = 1) : na
+    lnSL    := showSLLine ? line.new(bar_index, sl, bar_index + 1, sl, color = colSell, style = line.style_dashed, width = 1) : na
+    lnTP1   := showTPLines and not na(tTP1) ? line.new(bar_index, tTP1, bar_index + 1, tTP1, color = colBuy, style = line.style_dotted) : na
+    lnTP2   := showTPLines and not na(tTP2) ? line.new(bar_index, tTP2, bar_index + 1, tTP2, color = colBuy, style = line.style_dotted) : na
+    lnTP3   := showTPLines and not na(tTP3) ? line.new(bar_index, tTP3, bar_index + 1, tTP3, color = colBuy, style = line.style_dotted) : na
+    lnTPA   := showTPLines and not na(tTPA) ? line.new(bar_index, tTPA, bar_index + 1, tTPA, color = color.new(colBuy, 30), style = line.style_dotted) : na
+    bxRisk   := showZones ? box.new(bar_index, math.max(entry, sl), bar_index + 1, math.min(entry, sl), border_color = color.new(colSell, 70), bgcolor = color.new(colSell, 85)) : na
+    bxReward := showZones and not na(tFinalTP) ? box.new(bar_index, math.max(entry, tFinalTP), bar_index + 1, math.min(entry, tFinalTP), border_color = color.new(colBuy, 70), bgcolor = color.new(colBuy, 87)) : na
+    if showTradeLabels
+        string txt = (dir == 1 ? "BUY · " : "SELL · ") + typ + "  " + f_stars(qual) + "\nEntry  " + f_fmt(entry) + "\nStop   " + f_fmt(sl) + "\nRisk   " + f_fmt(risk) + " (" + str.tostring(risk / entry * 100.0, "#.##") + "%)" + (na(tFinalTP) ? "" : "\nTarget " + f_fmt(tFinalTP) + "  (" + rrText + ")") + (provisional ? "\nPROVISIONAL" : "")
+        label.new(bar_index, dir == 1 ? low : high, txt, style = dir == 1 ? label.style_label_up : label.style_label_down, color = color.new(dir == 1 ? colBuy : colSell, 15), textcolor = color.white, size = size.small, textalign = text.align_left)
+
+// ───────────────────────────── LEVEL LINES ─────────────────────────────
+var line  lnPMH = na
+var line  lnPML = na
+var line  lnPDH = na
+var line  lnPDL = na
+var label lbPMH = na
+var label lbPML = na
+var label lbPDH = na
+var label lbPDL = na
+
+if newDay
+    if not showHistory
+        line.delete(lnPMH)
+        line.delete(lnPML)
+        line.delete(lnPDH)
+        line.delete(lnPDL)
+    label.delete(lbPMH)
+    label.delete(lbPML)
+    label.delete(lbPDH)
+    label.delete(lbPDL)
+    lnPMH := na
+    lnPML := na
+    lnPDH := na
+    lnPDL := na
+    lbPMH := na
+    lbPML := na
+    lbPDH := na
+    lbPDL := na
+
+f_drawLevel(line ln, label lb, float px, bool show, color col, string name, bool broken) =>
+    line  l = ln
+    label b = lb
+    if show and not na(px)
+        if na(l)
+            l := line.new(bar_index, px, bar_index, px, color = col, style = lvlStyle, width = lvlWidth)
+        else
+            line.set_y1(l, px)
+            line.set_y2(l, px)
+            line.set_x2(l, bar_index)
+        if showLevelLabels
+            string t = name + "  " + str.tostring(px, format.mintick) + (broken ? "  ✓" : "")
+            if na(b)
+                b := label.new(bar_index, px, t, style = label.style_label_left, color = color.new(col, 85), textcolor = col, size = size.small)
+            else
+                label.set_xy(b, bar_index, px)
+                label.set_text(b, t)
+    [l, b]
+
+[l1, b1] = f_drawLevel(lnPMH, lbPMH, pmhShown, usePMH, colPMH, pmFrozen ? "PMH" : "PMH (live)", pmhDone)
+[l2, b2] = f_drawLevel(lnPML, lbPML, pmlShown, usePML, colPML, pmFrozen ? "PML" : "PML (live)", pmlDone)
+[l3, b3] = f_drawLevel(lnPDH, lbPDH, pdh, usePDH, colPDH, "PDH", pdhDone)
+[l4, b4] = f_drawLevel(lnPDL, lbPDL, pdl, usePDL, colPDL, "PDL", pdlDone)
+lnPMH := l1
+lbPMH := b1
+lnPML := l2
+lbPML := b2
+lnPDH := l3
+lbPDH := b3
+lnPDL := l4
+lbPDL := b4
+
+// breakout labels (colored like the level that was broken)
+if showBrkLabels and bullBreak
+    label.new(bar_index, high, "▲ " + ctxLevel + " BREAKOUT" + (provisional ? " (prov.)" : ""), style = label.style_label_down, color = color.new(ctxColor, 70), textcolor = color.white, size = size.tiny)
+if showBrkLabels and bearBreak
+    label.new(bar_index, low, "▼ " + ctxLevel + " BREAKOUT" + (provisional ? " (prov.)" : ""), style = label.style_label_up, color = color.new(ctxColor, 70), textcolor = color.white, size = size.tiny)
+
+// ───────────────────────────── PLOTS ─────────────────────────────
+emaCol = emaColorBy ? (emaRising ? color.new(colEma, 0) : color.new(colEma, 45)) : colEma
+plot(showEma ? emaVal : na, "EMA 8", color = emaCol, linewidth = 2)
+plot(showVwap ? vwapVal : na, "VWAP", color = colVwap, linewidth = 1, style = plot.style_linebr)
+
+plotshape(showSignals and eBull and not lBull, "BUY E Entry", shape.triangleup, location.belowbar, colBuy, text = "BUY\nE", textcolor = colBuy, size = size.small)
+plotshape(showSignals and lBull and not eBull, "BUY L Entry", shape.triangleup, location.belowbar, colBuy, text = "BUY\nL", textcolor = colBuy, size = size.small)
+plotshape(showSignals and eBull and lBull, "BUY E+L Entry", shape.triangleup, location.belowbar, colBuy, text = "BUY\nE+L", textcolor = colBuy, size = size.small)
+plotshape(showSignals and eBear and not lBear, "SELL E Entry", shape.triangledown, location.abovebar, colSell, text = "SELL\nE", textcolor = colSell, size = size.small)
+plotshape(showSignals and lBear and not eBear, "SELL L Entry", shape.triangledown, location.abovebar, colSell, text = "SELL\nL", textcolor = colSell, size = size.small)
+plotshape(showSignals and eBear and lBear, "SELL E+L Entry", shape.triangledown, location.abovebar, colSell, text = "SELL\nE+L", textcolor = colSell, size = size.small)
+plotshape(showInvalid and invalidatedNow, "Setup invalidated", shape.xcross, location.abovebar, color.new(color.gray, 20), size = size.tiny)
+plotshape(showSetupMarks and ctx == 1 and not buySig, "Bullish setup active", shape.circle, location.bottom, color.new(colBuy, 60), size = size.tiny)
+plotshape(showSetupMarks and ctx == -1 and not sellSig, "Bearish setup active", shape.circle, location.top, color.new(colSell, 60), size = size.tiny)
+
+bgcolor(showBg and ctx == 1 ? color.new(colBuy, 93) : showBg and ctx == -1 ? color.new(colSell, 93) : na, title = "Context background")
+bgcolor(showPmBg and inPM ? color.new(color.gray, 92) : na, title = "Premarket background")
+
+// ───────────────────────────── DASHBOARD ─────────────────────────────
+stateText = buySig ? (provisional ? "BUY ENTRY (provisional)" : "BUY ENTRY CONFIRMED") : sellSig ? (provisional ? "SELL ENTRY (provisional)" : "SELL ENTRY CONFIRMED") : bullBreak ? "BULLISH BREAKOUT" : bearBreak ? "BEARISH BREAKOUT" : invalidatedNow ? "SETUP INVALIDATED" : tDir != 0 ? "IN TRADE" : ctx != 0 ? (useE and useL ? "WAITING: EMA PULLBACK / LEVEL RETEST" : useE ? "WAITING FOR EMA PULLBACK" : "WAITING FOR LEVEL RETEST") : "NEUTRAL"
+
+tfWarn = timeframe.period != tfRecommended or not timeframe.isintraday
+
+var table dash = table.new(f_pos(dashPos), 2, 22, bgcolor = color.new(#0f1115, 6), border_color = color.new(color.gray, 82), border_width = 1, frame_color = color.new(colEma, 35), frame_width = 1)
+
+f_row(int r, string k, string v, color vc) =>
+    table.cell(dash, 0, r, k, text_color = cText, text_size = f_size(dashSize), text_halign = text.align_left)
+    table.cell(dash, 1, r, v, text_color = vc, text_size = f_size(dashSize), text_halign = text.align_left)
+
+f_head(int r, string t) =>
+    table.cell(dash, 0, r, t, text_color = colEma, text_size = f_size(dashSize), text_halign = text.align_left, bgcolor = color.new(colEma, 85))
+    table.cell(dash, 1, r, "", bgcolor = color.new(colEma, 85))
+
+if showDash and barstate.islast
+    color trendCol = ctx == 1 ? colBuy : ctx == -1 ? colSell : color.gray
+    table.cell(dash, 0, 0, "LE MODEL PRO", text_color = color.white, text_size = f_size(dashSize), text_halign = text.align_left, bgcolor = color.new(colEma, 55))
+    table.cell(dash, 1, 0, syminfo.ticker + " · " + timeframe.period + (tfWarn ? " ⚠" : ""), text_color = color.white, text_size = f_size(dashSize), text_halign = text.align_right, bgcolor = color.new(colEma, 55))
+    f_head(1, "MARKET")
+    f_row(2, "Trend", ctx == 1 ? "▲ Bullish" : ctx == -1 ? "▼ Bearish" : "• Neutral", trendCol)
+    f_row(3, "EMA " + str.tostring(emaLen), (close > emaVal ? "Price above" : close < emaVal ? "Price below" : "On EMA") + (emaRising ? " · rising" : emaFalling ? " · falling" : ""), close > emaVal ? colBuy : close < emaVal ? colSell : color.gray)
+    f_row(4, "VWAP", close > vwapVal ? "Price above" : "Price below", close > vwapVal ? colBuy : colSell)
+    f_head(5, "SETUP")
+    f_row(6, "Breakout", ctx != 0 ? ctxLevel + " " + f_fmt(ctxLevelPx) + " · " + str.format_time(ctxTime, "HH:mm", tz) : "Not confirmed", ctx != 0 ? ctxColor : color.gray)
+    f_row(7, "Status", stateText, trendCol)
+    f_head(8, "LAST SIGNAL")
+    f_row(9, "Signal", lastSignal == "—" ? "—" : lastSignal + " · " + lastType, lastSignal == "BUY" ? colBuy : lastSignal == "SELL" ? colSell : color.gray)
+    f_row(10, "Quality", na(lastQual) ? "—" : f_stars(lastQual), color.new(#facc15, 0))
+    f_row(11, "Entry / Stop", f_fmt(lastEntry) + "  /  " + f_fmt(lastSL), color.white)
+    f_row(12, "Risk · R:R", na(lastRisk) ? "—" : f_fmt(lastRisk) + " (" + str.tostring(lastRiskPc, "#.##") + "%) · " + rrText, color.white)
+    f_row(13, "Result", lastResult, str.contains(lastResult, "+") ? colBuy : str.contains(lastResult, "-") ? colSell : color.white)
+    int nextRow = 14
+    if showStats
+        f_head(14, "STATS (R, no fees)")
+        f_row(15, "Session", dTrades == 0 ? "No trades" : str.tostring(dTrades) + " trades · " + str.tostring(dWins) + " won · " + f_r(dNetR), dNetR > 0 ? colBuy : dNetR < 0 ? colSell : color.white)
+        f_row(16, "Chart", stTrades == 0 ? "No trades" : str.tostring(stTrades) + " trades · " + str.tostring(stWins * 100.0 / stTrades, "#") + "% win", color.white)
+        f_row(17, "Net · Avg", stTrades == 0 ? "—" : f_r(stNetR) + " · " + f_r(stNetR / stTrades) + " per trade", stNetR > 0 ? colBuy : stNetR < 0 ? colSell : color.white)
+        nextRow := 18
+    string warn = tfWarn ? "Use the " + tfRecommended + "-min chart" : pmMissing ? "No premarket data: enable extended hours (ETH)" : "OK"
+    f_row(nextRow, "Notes", warn, warn == "OK" ? cMuted : color.orange)
+
+// warning even when the dashboard is hidden
+var table warnTbl = table.new(position.bottom_center, 1, 1)
+if barstate.islast and not showDash and (tfWarn or pmMissing)
+    table.cell(warnTbl, 0, 0, tfWarn ? "LE Model Pro: designed for the " + tfRecommended + "-minute chart" : "LE Model Pro: no premarket data — enable extended trading hours", text_color = color.orange, bgcolor = color.new(#0f1115, 10), text_size = size.small)
+
+// ───────────────────────────── ALERTS ─────────────────────────────
+// 1) level breakouts  2) potential setups  3) confirmed entries  4) invalidation  5) exits
+alertcondition(alBrkPMH, "1 · Breakout ↑ PMH", "LE Model Pro | {{ticker}} {{interval}} | BREAKOUT above PMH — bullish setup active | close {{close}}")
+alertcondition(alBrkPDH, "1 · Breakout ↑ PDH", "LE Model Pro | {{ticker}} {{interval}} | BREAKOUT above PDH — bullish setup active | close {{close}}")
+alertcondition(alBrkPML, "1 · Breakout ↓ PML", "LE Model Pro | {{ticker}} {{interval}} | BREAKOUT below PML — bearish setup active | close {{close}}")
+alertcondition(alBrkPDL, "1 · Breakout ↓ PDL", "LE Model Pro | {{ticker}} {{interval}} | BREAKOUT below PDL — bearish setup active | close {{close}}")
+alertcondition(potentialBull, "2 · Potential BUY (pullback to EMA)", "LE Model Pro | {{ticker}} {{interval}} | potential BUY: pullback to EMA 8 in bullish setup (not confirmed)")
+alertcondition(potentialBear, "2 · Potential SELL (rally to EMA)", "LE Model Pro | {{ticker}} {{interval}} | potential SELL: rally to EMA 8 in bearish setup (not confirmed)")
+alertcondition(eBull, "3 · BUY E Entry", "LE Model Pro | {{ticker}} {{interval}} | BUY — E ENTRY (EMA 8 pullback) | close {{close}}")
+alertcondition(eBear, "3 · SELL E Entry", "LE Model Pro | {{ticker}} {{interval}} | SELL — E ENTRY (EMA 8 pullback) | close {{close}}")
+alertcondition(lBull, "3 · BUY L Entry", "LE Model Pro | {{ticker}} {{interval}} | BUY — L ENTRY (level retest) | close {{close}}")
+alertcondition(lBear, "3 · SELL L Entry", "LE Model Pro | {{ticker}} {{interval}} | SELL — L ENTRY (level retest) | close {{close}}")
+alertcondition(invalidatedNow, "4 · Setup invalidated", "LE Model Pro | {{ticker}} {{interval}} | setup invalidated")
+alertcondition(exitTP, "5 · Target hit", "LE Model Pro | {{ticker}} {{interval}} | TARGET hit")
+alertcondition(exitSL or exitBE, "5 · Stop hit", "LE Model Pro | {{ticker}} {{interval}} | STOP hit")
+
+// detailed alerts (one per event and candle; with the level, entry, stop and result)
+if useDynAlerts
+    freq = isIntrabar ? alert.freq_once_per_bar : alert.freq_once_per_bar_close
+    head = "LE Model Pro | " + syminfo.ticker + " " + timeframe.period + "m | "
+    if bullBreak
+        alert(head + "BREAKOUT ↑ " + ctxLevel + " " + f_fmt(ctxLevelPx) + " — bullish setup active, waiting for entry", freq)
+    if bearBreak
+        alert(head + "BREAKOUT ↓ " + ctxLevel + " " + f_fmt(ctxLevelPx) + " — bearish setup active, waiting for entry", freq)
+    if buySig or sellSig
+        alert(head + lastSignal + " — " + (eBull or eBear ? "E" : "L") + " ENTRY (" + ctxLevel + ") " + f_stars(lastQual) + " | entry " + f_fmt(lastEntry) + " | SL " + f_fmt(lastSL) + (na(tFinalTP) ? "" : " | TP " + f_fmt(tFinalTP)) + (provisional ? " | PROVISIONAL" : ""), freq)
+    if exitSL or exitTP or exitEMA or exitBE
+        alert(head + "EXIT " + lastResult, freq)
+    if invalidatedNow and not bullBreak and not bearBreak
+        alert(head + "setup invalidated", freq)
