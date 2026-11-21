@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FlowDev Promo</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;600;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;background:#000;overflow:hidden}
+#stage{position:absolute;left:0;top:0;width:1920px;height:1080px;transform-origin:0 0;background:#05030a;overflow:hidden;font-family:Sora,sans-serif;color:#fff}
+canvas{position:absolute;inset:0}
+.abs{position:absolute;will-change:transform,opacity}
+.c{left:0;right:0;text-align:center}
+.grad{background:linear-gradient(100deg,transparent 40%,rgba(255,255,255,.95) 50%,transparent 60%) no-repeat,linear-gradient(180deg,#fff 0%,#ffe3f1 40%,#ff7cbc 75%,#ff2e93 100%);background-size:300% 100%,100% 100%;-webkit-background-clip:text;background-clip:text;color:transparent}
+.gradw{background:linear-gradient(100deg,transparent 40%,rgba(255,255,255,.95) 50%,transparent 60%) no-repeat,linear-gradient(180deg,#fff7e8 0%,#ffd29a 40%,#ff8a7a 72%,#ff2e93 100%);background-size:300% 100%,100% 100%;-webkit-background-clip:text;background-clip:text;color:transparent}
+.eyebrow{font-family:Inter,sans-serif;font-weight:500;font-size:22px;letter-spacing:10px;text-transform:uppercase;color:rgba(255,220,238,.85)}
+.pill{display:inline-flex;align-items:center;gap:12px;padding:12px 26px;border-radius:999px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.18);backdrop-filter:blur(14px);font-family:Inter,sans-serif;font-size:20px;letter-spacing:4px;font-weight:600;color:#ffe3f1}
+.pill i{width:9px;height:9px;border-radius:50%;background:#ff2e93;box-shadow:0 0 12px #ff2e93}
+#logo{top:420px;font-size:200px;font-weight:800;letter-spacing:-6px;line-height:1.05}
+#e1{top:360px}
+#t1{top:670px}
+#q{top:250px;font-size:56px;font-weight:300;letter-spacing:2px;color:#fff;text-shadow:0 4px 30px rgba(0,0,0,.6)}
+#q b{font-weight:800}
+.big{top:330px;font-size:330px;font-weight:800;letter-spacing:-14px;line-height:1.05}
+#s2a,#s2b{top:740px}
+#h3{top:130px;font-size:84px;font-weight:800;letter-spacing:-2px;line-height:1.1}
+#e3{top:90px}
+.card{top:330px;width:390px;height:470px;border-radius:28px;padding:40px 34px;background:linear-gradient(160deg,rgba(255,255,255,.14),rgba(255,255,255,.03));border:1px solid rgba(255,255,255,.18);backdrop-filter:blur(22px) saturate(140%);box-shadow:0 30px 80px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.25)}
+.card .ic{width:84px;height:84px;border-radius:22px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#ff2e93,#a23bff);box-shadow:0 12px 34px rgba(255,46,147,.5)}
+.card h3{font-size:40px;font-weight:800;letter-spacing:-1px;line-height:1.05;margin-top:34px}
+.card p{font-family:Inter,sans-serif;font-size:21px;line-height:1.5;color:rgba(255,255,255,.72);margin-top:16px}
+.card .n{position:absolute;right:30px;top:30px;font-family:Inter;font-size:18px;font-weight:600;color:rgba(255,255,255,.35);letter-spacing:3px}
+#c1{top:240px;font-size:150px;font-weight:800;letter-spacing:-6px;line-height:1.02}
+#c2{top:600px}
+#btn{left:50%;top:700px;width:560px;height:112px;margin-left:-280px;border-radius:999px;background:linear-gradient(90deg,#ff2e93,#ff6fb3 50%,#c13bff);display:flex;align-items:center;justify-content:center;gap:20px;font-size:40px;font-weight:800;letter-spacing:1px;box-shadow:0 20px 70px rgba(255,46,147,.6),inset 0 1px 0 rgba(255,255,255,.5)}
+#ring{left:50%;top:700px;width:560px;height:112px;margin-left:-280px;border-radius:999px;border:2px solid rgba(255,111,179,.9)}
+#sig{top:880px;font-size:30px;font-weight:800;letter-spacing:14px}
+#sig b{color:#ff4fa3}
+.bars{left:0;right:0;height:56px;background:#000}
+#flash{inset:0;background:radial-gradient(circle at 50% 50%,#fff,rgba(255,120,190,.6) 40%,transparent 70%);opacity:0;mix-blend-mode:screen}
+</style></head><body>
+<div id="stage">
+  <canvas id="bg" width="1920" height="1080"></canvas>
+
+  <div class="abs c" id="e1"><span class="pill"><i></i>PRESENTA</span></div>
+  <div class="abs c grad" id="logo">FlowDev</div>
+  <div class="abs c eyebrow" id="t1">FiveM &nbsp;·&nbsp; RedM &nbsp;·&nbsp; Development Studio</div>
+
+  <div class="abs c" id="q">¿Quieres un <b>servidor</b> de</div>
+  <div class="abs c big grad" id="fivem">FiveM</div>
+  <div class="abs c big gradw" id="redm">RedM</div>
+  <div class="abs c" id="s2a"><span class="pill"><i></i>CIUDAD &nbsp;·&nbsp; ROLEPLAY &nbsp;·&nbsp; MODERNO</span></div>
+  <div class="abs c" id="s2b"><span class="pill"><i style="background:#ff9a5a;box-shadow:0 0 12px #ff9a5a"></i>EL VIEJO OESTE &nbsp;·&nbsp; ROLEPLAY</span></div>
+
+  <div class="abs c eyebrow" id="e3">Todo lo que tu servidor necesita</div>
+  <div class="abs c grad" id="h3">Lo hacemos realidad.</div>
+  <div class="abs card" id="k0"><div class="n">01</div><div class="ic"><svg width="42" height="42" viewBox="0 0 48 48" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 14 7 24l10 10M31 14l10 10-10 10"/></svg></div>
+    <h3>Scripts<br>a medida</h3><p>ESX, QBCore, QBox y VORP. Lo que imagines, programado limpio.</p></div>
+  <div class="abs card" id="k1"><div class="n">02</div><div class="ic"><svg width="42" height="42" viewBox="0 0 48 48" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="9" width="36" height="25" rx="4"/><path d="M17 41h14M13 27l7-7 5 4 9-9"/></svg></div>
+    <h3>HUD &amp; NUI<br>premium</h3><p>Interfaces con estilo propio, animadas y con la identidad de tu marca.</p></div>
+  <div class="abs card" id="k2"><div class="n">03</div><div class="ic"><svg width="42" height="42" viewBox="0 0 48 48" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M26 5 10 27h13l-2 16 17-23H25z"/></svg></div>
+    <h3>Optimizado<br>al máximo</h3><p>Scripts ligeros, cero lag y un servidor estable para tu comunidad.</p></div>
+  <div class="abs card" id="k3"><div class="n">04</div><div class="ic"><svg width="42" height="42" viewBox="0 0 48 48" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 27v-4a14 14 0 0 1 28 0v4"/><rect x="7" y="27" width="8" height="11" rx="3"/><rect x="33" y="27" width="8" height="11" rx="3"/></svg></div>
+    <h3>Setup &amp;<br>soporte</h3><p>Montamos tu servidor desde cero y te acompañamos después.</p></div>
+
+  <div class="abs c grad" id="c1">Tu servidor,<br>a otro nivel.</div>
+  <div class="abs c eyebrow" id="c2">Scripts &nbsp;·&nbsp; HUDs &nbsp;·&nbsp; Setup completo</div>
+  <div class="abs" id="ring"></div>
+  <div class="abs" id="btn"><svg width="52" height="40" viewBox="0 0 71 55" fill="#fff"><path d="M60.1 4.9A58.5 58.5 0 0 0 45.6.4a40 40 0 0 0-1.8 3.7 54 54 0 0 0-16.2 0A39 39 0 0 0 25.7.4 58.4 58.4 0 0 0 11.2 4.9C2 18.6-.5 32 .7 45.3a59 59 0 0 0 18 9.1 43 43 0 0 0 3.8-6.2 38 38 0 0 1-6-2.9l1.5-1.1a42 42 0 0 0 35.9 0l1.5 1.1a38 38 0 0 1-6 2.9 43 43 0 0 0 3.8 6.2 58.7 58.7 0 0 0 18-9.1c1.5-15.4-2.5-28.7-10.6-40.4ZM23.7 37.1c-3.5 0-6.4-3.2-6.4-7.2s2.8-7.2 6.4-7.2 6.5 3.3 6.4 7.2c0 4-2.8 7.2-6.4 7.2Zm23.6 0c-3.5 0-6.4-3.2-6.4-7.2s2.8-7.2 6.4-7.2 6.5 3.3 6.4 7.2c0 4-2.8 7.2-6.4 7.2Z"/></svg>Escríbenos</div>
+  <div class="abs c" id="sig">FLOW<b>DEV</b></div>
+
+  <canvas id="fx" width="1920" height="1080"></canvas>
+  <div class="abs bars" style="top:0"></div><div class="abs bars" style="bottom:0"></div>
+  <div class="abs" id="flash"></div>
+</div>
+<script>
+const DUR=16;
+const S=document.getElementById('stage');
+function fit(){const k=Math.min(innerWidth/1920,innerHeight/1080);S.style.transform=`translate(${(innerWidth-1920*k)/2}px,${(innerHeight-1080*k)/2}px) scale(${k})`}
+addEventListener('resize',fit);fit();
+const $=id=>document.getElementById(id);
+const cl=(v,a=0,b=1)=>Math.max(a,Math.min(b,v)), lin=(t,a,b)=>cl((t-a)/(b-a));
+const eo=x=>1-Math.pow(1-x,4), eio=x=>x<.5?8*x**4:1-Math.pow(-2*x+2,4)/2;
+const back=x=>{const c=1.4,c3=c+1;return 1+c3*Math.pow(x-1,3)+c*Math.pow(x-1,2)};
+const win=(t,a,b,fi=.4,fo=.4)=>Math.min(eo(lin(t,a,a+fi)),1-eio(lin(t,b-fo,b)));
+const rnd=(i,n)=>{const v=Math.sin(i*127.1+n*311.7)*43758.5453;return v-Math.floor(v)};
+function set(el,o,tf){el.style.opacity=o;el.style.transform=tf||''}
+function reveal(el,t,a,dur,o){const k=eo(lin(t,a,a+dur));set(el,o*k,`translateY(${(1-k)*50}px)`);el.style.filter=`blur(${(1-k)*16}px)`}
+function shine(el,t,a){el.style.backgroundPosition=`${(1-eio(lin(t,a,a+1.1)))*200-50}% 0, 0 0`}
+
+const bg=$('bg'),g=bg.getContext('2d'),fx=$('fx'),f=fx.getContext('2d');
+const gn=document.createElement('canvas');gn.width=gn.height=256;{const c=gn.getContext('2d'),d=c.createImageData(256,256);for(let i=0;i<d.data.length;i+=4){const v=rnd(i,7)*255;d.data[i]=d.data[i+1]=d.data[i+2]=v;d.data[i+3]=16}c.putImageData(d,0,0)}
+const city=[0,1,2].map(L=>{const b=[];let x=-200,i=0;while(x<2600){const w=50+rnd(i+L*99,1)*(110-L*20),h=(L==0?170:L==1?230:300)*(.45+rnd(i+L*99,2)*.75);b.push({x,w,h,ant:rnd(i+L*99,3)>.8,win:[...Array(60)].map((_,k)=>rnd(i*7+L*13+k,4))});x+=w+(L==2?8:2);i++}return b});
+
+function drawCity(t,a){if(a<=0)return;g.save();g.globalAlpha=a;
+  let sk=g.createLinearGradient(0,0,0,1080);sk.addColorStop(0,'#07040f');sk.addColorStop(.45,'#1b0830');sk.addColorStop(.72,'#5a1250');sk.addColorStop(.86,'#ff2e93');sk.addColorStop(1,'#2a0720');
+  g.fillStyle=sk;g.fillRect(0,0,1920,1080);
+  let m=g.createRadialGradient(1450,260,0,1450,260,260);m.addColorStop(0,'rgba(255,215,235,.55)');m.addColorStop(.14,'rgba(255,170,215,.32)');m.addColorStop(.15,'rgba(255,120,190,.12)');m.addColorStop(1,'rgba(255,46,147,0)');g.fillStyle=m;g.fillRect(1100,0,700,600);
+  const cols=['#2a0d36','#180722','#0b0412'], base=[930,960,1000];
+  city.forEach((layer,L)=>{const off=t*(8+L*16);
+    layer.forEach((b,i)=>{const x=b.x-off%400, y=base[L]-b.h; g.fillStyle=cols[L];g.fillRect(x,y,b.w,b.h+100);
+      if(b.ant){g.fillRect(x+b.w/2-2,y-60,4,60);g.fillStyle=`rgba(255,60,140,${.5+.5*Math.sin(t*4+i)})`;g.beginPath();g.arc(x+b.w/2,y-62,4,0,7);g.fill()}
+      if(L>0){let k=0;for(let wy=y+14;wy<base[L]-10;wy+=22)for(let wx=x+8;wx<x+b.w-12;wx+=16){const r=b.win[k++%60];if(r>.55){const fl=r>.97?(.5+.5*Math.sin(t*6+k)):1;g.fillStyle=r>.85?`rgba(255,120,190,${.75*fl})`:`rgba(255,225,240,${.5*fl})`;g.fillRect(wx,wy,L==2?7:5,L==2?10:7)}}}});
+    let fg=g.createLinearGradient(0,base[L]-120,0,base[L]+40);fg.addColorStop(0,'rgba(255,46,147,0)');fg.addColorStop(1,`rgba(255,46,147,${.10+L*.04})`);g.fillStyle=fg;g.fillRect(0,base[L]-120,1920,160)});
+  let st=g.createLinearGradient(0,1000,0,1080);st.addColorStop(0,'#12050f');st.addColorStop(1,'#000');g.fillStyle=st;g.fillRect(0,1000,1920,80);
+  for(let i=0;i<14;i++){const x=(i*157+t*260)%2100-100;g.fillStyle='rgba(255,90,170,.35)';g.fillRect(x,1012+(i%3)*12,40+(i%4)*30,2)}
+  g.restore()}
+
+function drawWest(t,a){if(a<=0)return;g.save();g.globalAlpha=a;
+  let sk=g.createLinearGradient(0,0,0,1080);sk.addColorStop(0,'#160a2c');sk.addColorStop(.35,'#5b1a5e');sk.addColorStop(.6,'#e2417e');sk.addColorStop(.75,'#ff9a6a');sk.addColorStop(.82,'#ffd29a');sk.addColorStop(1,'#3a0f24');
+  g.fillStyle=sk;g.fillRect(0,0,1920,1080);
+  for(let i=0;i<90;i++){g.fillStyle=`rgba(255,240,250,${(.2+.5*rnd(i,3))*(.6+.4*Math.sin(t*2+i))})`;g.fillRect(rnd(i,1)*1920,rnd(i,2)*340,1.6,1.6)}
+  const sy=780-eo(lin(t,6.0,8.8))*50, R=330;
+  let gl=g.createRadialGradient(960,sy,0,960,sy,R*2.2);gl.addColorStop(0,'rgba(255,190,120,.55)');gl.addColorStop(1,'rgba(255,90,120,0)');g.fillStyle=gl;g.fillRect(0,0,1920,1080);
+  const sc=document.createElement('canvas');
+  g.save();g.beginPath();g.arc(960,sy,R,0,7);g.clip();
+  let sg=g.createLinearGradient(0,sy-R,0,sy+R);sg.addColorStop(0,'#fff3c4');sg.addColorStop(.45,'#ffb36b');sg.addColorStop(1,'#ff2e93');g.fillStyle=sg;g.fillRect(960-R,sy-R,R*2,R*2);
+  // horizontal stripes painted with sky color behind (retro sun)
+  for(let k=0;k<9;k++){const yy=sy+20+k*26+((t*14)%26),hh=2+k*1.4;let sg2=g.createLinearGradient(0,0,0,1080);sg2.addColorStop(0,'#160a2c');sg2.addColorStop(.6,'#e2417e');sg2.addColorStop(.75,'#ff9a6a');sg2.addColorStop(.82,'#ffd29a');g.fillStyle=sg2;g.fillRect(960-R,yy,R*2,hh)}
+  g.restore();
+  for(let i=0;i<5;i++){const y=300+i*70,x=((t*(10+i*4)+i*400)%2600)-500;g.fillStyle=`rgba(255,${150-i*15},${170-i*10},.12)`;g.beginPath();g.ellipse(x,y,380,14+i*2,0,0,7);g.fill()}
+  const mesa=(pts,c,off)=>{g.fillStyle=c;g.beginPath();g.moveTo(-50,1080);pts.forEach(([x,y])=>g.lineTo(x-off,y));g.lineTo(2000,1080);g.closePath();g.fill()};
+  mesa([[-60,860],[180,860],[230,700],[470,690],[520,860],[900,870],[1300,850],[1360,640],[1650,630],[1700,850],[2060,860]],'#7a2350',t*4);
+  mesa([[-80,920],[300,910],[360,780],[560,775],[600,915],[1100,930],[1500,905],[1550,820],[1700,815],[1760,915],[2080,920]],'#45122f',t*9);
+  mesa([[-60,980],[700,965],[1300,975],[2060,960]],'#1a0613',0);
+  const cactus=(x,y,s)=>{g.fillStyle='#120410';const r=(X,Y,W,H)=>{g.beginPath();g.roundRect(x+X*s,y+Y*s,W*s,H*s,W*s/2);g.fill()};r(-6,-120,12,125);r(-30,-80,10,40);r(-30,-50,26,10);r(20,-95,10,45);r(6,-55,24,10)};
+  cactus(260-t*14,985,1.2);cactus(1560-t*14,990,1.6);cactus(1720-t*14,980,.9);
+  for(let i=0;i<60;i++){const x=(rnd(i,1)*1920+t*(30+rnd(i,2)*60))%1920,y=820+rnd(i,3)*240+Math.sin(t+i)*8;g.fillStyle=`rgba(255,210,160,${.15+.3*rnd(i,4)})`;g.fillRect(x,y,2,2)}
+  g.restore()}
+
+function drawGrid(t,a){if(a<=0)return;g.save();g.globalAlpha=a;
+  const H=700;
+  let sk=g.createLinearGradient(0,0,0,H);sk.addColorStop(0,'#05030a');sk.addColorStop(.8,'#1c0628');sk.addColorStop(1,'#46104a');
+  g.fillStyle=sk;g.fillRect(0,0,1920,H);g.fillStyle='#08020e';g.fillRect(0,H,1920,1080-H);
+  let hz=g.createRadialGradient(960,H,0,960,H,950);hz.addColorStop(0,'rgba(255,46,147,.6)');hz.addColorStop(.35,'rgba(170,40,255,.16)');hz.addColorStop(1,'rgba(0,0,0,0)');g.fillStyle=hz;g.fillRect(0,0,1920,1080);
+  g.lineWidth=1.5;
+  for(let i=-26;i<=26;i++){let lg=g.createLinearGradient(0,H,0,1080);lg.addColorStop(0,'rgba(255,70,160,.15)');lg.addColorStop(1,'rgba(255,70,160,.7)');g.strokeStyle=lg;g.beginPath();g.moveTo(960+i*10,H);g.lineTo(960+i*240,1080);g.stroke()}
+  for(let k=0;k<18;k++){const z=(k+(t*1.2)%1)/18, y=H+(1080-H)*Math.pow(z,2.2);g.strokeStyle=`rgba(255,70,160,${.1+.6*z})`;g.beginPath();g.moveTo(0,y);g.lineTo(1920,y);g.stroke()}
+  g.fillStyle='rgba(255,160,210,.95)';g.fillRect(0,H-1,1920,2);
+  let hl=g.createLinearGradient(0,H-90,0,H);hl.addColorStop(0,'rgba(255,46,147,0)');hl.addColorStop(1,'rgba(255,46,147,.3)');g.fillStyle=hl;g.fillRect(0,H-90,1920,90);
+  for(let i=0;i<80;i++){g.fillStyle=`rgba(255,230,245,${(.15+.5*rnd(i,3))*(.6+.4*Math.sin(t*2+i))})`;g.fillRect(rnd(i,1)*1920,rnd(i,2)*(H-120),1.5,1.5)}
+  g.restore()}
+
+function drawAurora(t,a){if(a<=0)return;g.save();g.globalAlpha=a;g.fillStyle='#07030d';g.fillRect(0,0,1920,1080);g.globalCompositeOperation='lighter';
+  [['255,46,147',.5],['150,50,255',.45],['255,120,190',.3],['60,40,210',.4]].forEach(([c,al],i)=>{const x=960+Math.sin(t*.4+i*1.7)*620,y=540+Math.cos(t*.33+i*2.1)*300,r=640+80*Math.sin(t*.5+i);let gr=g.createRadialGradient(x,y,0,x,y,r);gr.addColorStop(0,`rgba(${c},${al})`);gr.addColorStop(1,`rgba(${c},0)`);g.fillStyle=gr;g.fillRect(0,0,1920,1080)});
+  g.restore()}
+
+function drawFX(t){f.clearRect(0,0,1920,1080);f.globalCompositeOperation='lighter';
+  for(let i=0;i<24;i++){const x=(rnd(i,1)*2200+t*(10+rnd(i,2)*30))%2200-140,y=rnd(i,3)*1080+Math.sin(t*.6+i)*30,r=20+rnd(i,4)*60,al=.04+.06*(.5+.5*Math.sin(t+i));let gr=f.createRadialGradient(x,y,0,x,y,r);gr.addColorStop(0,`rgba(255,140,200,${al})`);gr.addColorStop(.7,`rgba(255,80,170,${al*.6})`);gr.addColorStop(1,'rgba(255,80,170,0)');f.fillStyle=gr;f.beginPath();f.arc(x,y,r,0,7);f.fill()}
+  f.globalCompositeOperation='source-over';
+  let v=f.createRadialGradient(960,540,520,960,540,1150);v.addColorStop(0,'rgba(0,0,0,0)');v.addColorStop(1,'rgba(0,0,0,.7)');f.fillStyle=v;f.fillRect(0,0,1920,1080);
+  const fr=Math.floor(t*30),ox=Math.floor(rnd(fr,9)*256),oy=Math.floor(rnd(fr,8)*256);f.save();f.translate(-ox,-oy);f.fillStyle=f.createPattern(gn,'repeat');f.fillRect(0,0,1920+256,1080+256);f.restore()}
+
+// 0–3.6 logo (grid) | 3.6–6.25 FiveM (city) | 6.25–8.8 RedM (west) | 8.8–12.6 features (aurora) | 12.6–16 CTA (grid)
+function render(t){
+  const wG=Math.max(win(t,-1,3.9,.01,.6),win(t,12.3,17,.6,.01)), wC=win(t,3.3,6.55,.6,.6), wW=win(t,5.95,9.1,.6,.6), wA=win(t,8.5,12.9,.6,.6);
+  g.fillStyle='#05030a';g.fillRect(0,0,1920,1080);
+  drawAurora(t,wA);drawGrid(t,wG);drawCity(t,wC);drawWest(t,wW);drawFX(t);
+
+  const s1=win(t,0,3.6,.01,.45);
+  reveal($('e1'),t,.2,.7,s1);
+  {const k=eo(lin(t,.5,1.5)),el=$('logo');set(el,s1*k,`scale(${1.15-.15*k+lin(t,1.5,3.6)*.04})`);el.style.filter=`blur(${(1-k)*24}px) drop-shadow(0 10px 40px rgba(255,46,147,.5))`;el.style.letterSpacing=(-6+(1-k)*60)+'px';shine(el,t,1.4)}
+  reveal($('t1'),t,1.3,.8,s1);
+
+  const s2=win(t,3.6,8.8,.4,.45);
+  reveal($('q'),t,3.7,.7,s2);
+  {const a=win(t,3.9,6.25,.5,.35),k=eo(lin(t,3.9,4.6)),el=$('fivem');set(el,a,`scale(${.85+.15*back(lin(t,3.9,4.6))}) translateY(${(1-k)*40}px)`);el.style.filter=`blur(${(1-k)*20+lin(t,5.95,6.25)*20}px) drop-shadow(0 20px 60px rgba(255,46,147,.6))`;shine(el,t,4.5)}
+  {const a=win(t,6.25,8.8,.5,.45),k=eo(lin(t,6.25,6.95)),el=$('redm');set(el,a,`scale(${.85+.15*back(lin(t,6.25,6.95))}) translateY(${(1-k)*40}px)`);el.style.filter=`blur(${(1-k)*20}px) drop-shadow(0 20px 60px rgba(120,20,60,.7))`;shine(el,t,6.9)}
+  reveal($('s2a'),t,4.5,.6,win(t,4.5,6.2,.5,.3));
+  reveal($('s2b'),t,6.8,.6,win(t,6.8,8.8,.5,.45));
+
+  const s3=win(t,8.8,12.6,.4,.45);
+  reveal($('e3'),t,8.9,.6,s3);reveal($('h3'),t,9.05,.7,s3);shine($('h3'),t,9.6);
+  for(let i=0;i<4;i++){const k=eo(lin(t,9.3+i*.15,10.1+i*.15)),el=$('k'+i);el.style.left=(105+i*435)+'px';
+    set(el,s3*k,`perspective(1200px) translateY(${(1-k)*160+Math.sin(t*1.6+i*1.3)*8}px) rotateX(${(1-k)*35}deg)`)}
+
+  const s4=win(t,12.6,16,.45,.01);
+  {const k=eo(lin(t,12.7,13.5)),el=$('c1');set(el,s4*k,`scale(${1.1-.1*k})`);el.style.filter=`blur(${(1-k)*20}px) drop-shadow(0 10px 40px rgba(255,46,147,.45))`;shine(el,t,13.3)}
+  reveal($('c2'),t,13.3,.6,s4);
+  const bk=lin(t,13.6,14.1),pulse=t>14.1?1+.03*Math.sin((t-14.1)*5):1;set($('btn'),s4*eo(bk),`scale(${(.6+.4*back(bk))*pulse})`);
+  const ring=t>14.1?((t-14.1)/1.1)%1:0;set($('ring'),s4*(t>14.1?(1-ring)*.9:0),`scale(${1+ring*.35},${1+ring*.9})`);
+  reveal($('sig'),t,14.3,.7,s4);
+
+  let fl=0;[3.6,6.25,8.8,12.6].forEach(c=>fl=Math.max(fl,1-Math.abs(t-c)/.18));
+  $('flash').style.opacity=cl(fl)*.5;
+}
+let mode='live',t0=performance.now();
+window.__seek=t=>{mode='seek';render(t)};
+(function loop(now){if(mode==='live')render(((now-t0)/1000)%DUR);requestAnimationFrame(loop)})(t0);
+</script></body></html>
